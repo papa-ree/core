@@ -119,6 +119,10 @@ class CoreServiceProvider extends ServiceProvider
         ], 'bale-core:config');
 
         $this->publishes($this->getMigrations(), 'bale-core:migrations');
+
+        $this->publishes([
+            __DIR__ . '/../resources/js/' => resource_path('js/'),
+        ], 'bale-core:assets');
     }
 
     /**
