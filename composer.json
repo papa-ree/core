@@ -6,7 +6,7 @@
         "laravel",
         "core"
     ],
-    "homepage": "https://github.com/bale/core",
+    "homepage": "https://github.com/papa-ree/core",
     "license": "MIT",
     "authors": [
         {
@@ -17,9 +17,15 @@
     ],
     "require": {
         "php": "^8.2",
+        "illuminate/contracts": "^11.0||^12.0",
+        "josiasmontag/laravel-recaptchav3": "*",
         "laravel/fortify": "*",
+        "laravel/socialite": "*",
+        "league/flysystem-aws-s3-v3": "*",
+        "mallardduck/blade-lucide-icons": "*",
+        "rtconner/laravel-tagging": "*",
         "socialiteproviders/keycloak": "*",
-        "illuminate/contracts": "^11.0||^12.0"
+        "spatie/laravel-permission": "*"
     },
     "require-dev": {
         "laravel/pint": "^1.14",
@@ -33,7 +39,10 @@
         "psr-4": {
             "Bale\\Core\\": "src/",
             "Bale\\Core\\Database\\Factories\\": "database/factories/"
-        }
+        },
+        "files": [
+            "src/Helpers/helpers.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
