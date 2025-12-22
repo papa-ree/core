@@ -56,7 +56,7 @@
     }" x-init="
         chartCanvas = $el.querySelector('canvas');
         initChart();
-    " class="relative w-full h-80">
+    " class="relative w-full h-80 dark:text-white">
     <canvas></canvas>
 </div>
 

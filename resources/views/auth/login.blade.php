@@ -43,7 +43,7 @@
                             <input type="text" name="username" id="username" placeholder="username" autofocus
                                 autocomplete="off"
                                 class="block w-full px-4 py-2 mt-2 text-gray-700 placeholder-gray-400 bg-white border border-gray-200 rounded-lg dark:placeholder-gray-600 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700 focus:border-blue-400 dark:focus:border-blue-400 focus:ring-blue-400 focus:outline-none focus:ring focus:ring-opacity-40" />
-                            <core::input-error for="username" />
+                            <x-core::input-error for="username" />
                         </div>
 
                         <div class="mt-6">
@@ -54,11 +54,11 @@
                             <input type="password" name="password" id="password" placeholder="Your Password"
                                 autocomplete="off"
                                 class="block w-full px-4 py-2 mt-2 text-gray-700 placeholder-gray-400 bg-white border border-gray-200 rounded-lg dark:placeholder-gray-600 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700 focus:border-blue-400 dark:focus:border-blue-400 focus:ring-blue-400 focus:outline-none focus:ring focus:ring-opacity-40" />
-                            <core::input-error for="password" />
+                            <x-core::input-error for="password" />
                         </div>
 
                         {!! RecaptchaV3::field('login') !!}
-                        <core::input-error for="g-recaptcha-response" />
+                        <x-core::input-error for="g-recaptcha-response" />
 
                         <div class="relative mt-6">
                             <button type="submit" :disabled="!recaptchaValue" x-show="recaptchaValue"

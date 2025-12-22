@@ -38,44 +38,45 @@
     </div>
 @elseif ($useRangeSlide)
     <input type="range" class="w-full bg-transparent cursor-pointer appearance-none disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden
-                          [&::-webkit-slider-thumb]:w-2.5
-                          [&::-webkit-slider-thumb]:h-2.5
-                          [&::-webkit-slider-thumb]:-mt-0.5
-                          [&::-webkit-slider-thumb]:appearance-none
-                          [&::-webkit-slider-thumb]:bg-white
-                          [&::-webkit-slider-thumb]:shadow-[0_0_0_4px_rgba(37,99,235,1)]
-                          [&::-webkit-slider-thumb]:rounded-full
-                          [&::-webkit-slider-thumb]:transition-all
-                          [&::-webkit-slider-thumb]:duration-150
-                          [&::-webkit-slider-thumb]:ease-in-out
-                          dark:[&::-webkit-slider-thumb]:bg-neutral-700
+                                  [&::-webkit-slider-thumb]:w-2.5
+                                  [&::-webkit-slider-thumb]:h-2.5
+                                  [&::-webkit-slider-thumb]:-mt-0.5
+                                  [&::-webkit-slider-thumb]:appearance-none
+                                  [&::-webkit-slider-thumb]:bg-white
+                                  [&::-webkit-slider-thumb]:shadow-[0_0_0_4px_rgba(37,99,235,1)]
+                                  [&::-webkit-slider-thumb]:rounded-full
+                                  [&::-webkit-slider-thumb]:transition-all
+                                  [&::-webkit-slider-thumb]:duration-150
+                                  [&::-webkit-slider-thumb]:ease-in-out
+                                  dark:[&::-webkit-slider-thumb]:bg-neutral-700
 
-                          [&::-moz-range-thumb]:w-2.5
-                          [&::-moz-range-thumb]:h-2.5
-                          [&::-moz-range-thumb]:appearance-none
-                          [&::-moz-range-thumb]:bg-white
-                          [&::-moz-range-thumb]:border-4
-                          [&::-moz-range-thumb]:border-blue-600
-                          [&::-moz-range-thumb]:rounded-full
-                          [&::-moz-range-thumb]:transition-all
-                          [&::-moz-range-thumb]:duration-150
-                          [&::-moz-range-thumb]:ease-in-out
+                                  [&::-moz-range-thumb]:w-2.5
+                                  [&::-moz-range-thumb]:h-2.5
+                                  [&::-moz-range-thumb]:appearance-none
+                                  [&::-moz-range-thumb]:bg-white
+                                  [&::-moz-range-thumb]:border-4
+                                  [&::-moz-range-thumb]:border-blue-600
+                                  [&::-moz-range-thumb]:rounded-full
+                                  [&::-moz-range-thumb]:transition-all
+                                  [&::-moz-range-thumb]:duration-150
+                                  [&::-moz-range-thumb]:ease-in-out
 
-                          [&::-webkit-slider-runnable-track]:w-full
-                          [&::-webkit-slider-runnable-track]:h-2
-                          [&::-webkit-slider-runnable-track]:bg-gray-100
-                          [&::-webkit-slider-runnable-track]:rounded-full
-                          dark:[&::-webkit-slider-runnable-track]:bg-neutral-700
+                                  [&::-webkit-slider-runnable-track]:w-full
+                                  [&::-webkit-slider-runnable-track]:h-2
+                                  [&::-webkit-slider-runnable-track]:bg-gray-100
+                                  [&::-webkit-slider-runnable-track]:rounded-full
+                                  dark:[&::-webkit-slider-runnable-track]:bg-neutral-700
 
-                          [&::-moz-range-track]:w-full
-                          [&::-moz-range-track]:h-2
-                          [&::-moz-range-track]:bg-gray-100
-                          [&::-moz-range-track]:rounded-full" id="steps-range-bale-grid" aria-orientation="horizontal" {!! $attributes->merge([])!!}>
+                                  [&::-moz-range-track]:w-full
+                                  [&::-moz-range-track]:h-2
+                                  [&::-moz-range-track]:bg-gray-100
+                                  [&::-moz-range-track]:rounded-full" id="steps-range-bale-grid"
+        aria-orientation="horizontal" {!! $attributes->merge([])!!}>
 @else
     <input {{ $disabled ? 'disabled' : '' }} {{ $autofocus ? 'autofocus' : '' }} {!! $attributes->merge([
             'type' => 'text',
             'class' =>
-                'py-3 px-4 block w-full border-gray-200 rounded-md text-sm focus:border-emerald-300 focus:ring-emerald-300 dark:bg-gray-700 dark:border-gray-700 text-gray-800 dark:text-neutral-200',
+                'block w-full py-3 px-4 text-gray-900 placeholder-gray-500 transition-all duration-200 bg-white border border-gray-300 form-input dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent',
         ]) !!}>
 @endif
 
@@ -127,8 +128,8 @@
                             <div class="w-1/5 px-1">
                                 <div class="h-2 transition-colors rounded-xl"
                                     :class="i < passwordScore ? (passwordScore <= 2 ? 'bg-red-400' : (
-                                                                                                                                                            passwordScore <= 4 ? 'bg-yellow-400' : 'bg-green-500')) :
-                                                                                                                                                        'bg-gray-200'">
+                                                                                                                                                                    passwordScore <= 4 ? 'bg-yellow-400' : 'bg-green-500')) :
+                                                                                                                                                                'bg-gray-200'">
                                 </div>
                             </div>
                         </template>
@@ -142,39 +143,39 @@
                             @input="generatePassword()" />
                         <input type="range"
                             class="w-full bg-transparent cursor-pointer appearance-none disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:border-emerald-500 focus:ring-emerald-500
-                                                                                                                                            [&::-webkit-slider-thumb]:w-2.5
-                                                                                                                                            [&::-webkit-slider-thumb]:h-2.5
-                                                                                                                                            [&::-webkit-slider-thumb]:-mt-0.5
-                                                                                                                                            [&::-webkit-slider-thumb]:appearance-none
-                                                                                                                                            [&::-webkit-slider-thumb]:bg-white
-                                                                                                                                            [&::-webkit-slider-thumb]:shadow-[0_0_0_4px_rgba(37,99,235,1)]
-                                                                                                                                            [&::-webkit-slider-thumb]:rounded-full
-                                                                                                                                            [&::-webkit-slider-thumb]:transition-all
-                                                                                                                                            [&::-webkit-slider-thumb]:duration-150
-                                                                                                                                            [&::-webkit-slider-thumb]:ease-in-out
-                                                                                                                                            dark:[&::-webkit-slider-thumb]:bg-neutral-700
+                                                                                                                                                    [&::-webkit-slider-thumb]:w-2.5
+                                                                                                                                                    [&::-webkit-slider-thumb]:h-2.5
+                                                                                                                                                    [&::-webkit-slider-thumb]:-mt-0.5
+                                                                                                                                                    [&::-webkit-slider-thumb]:appearance-none
+                                                                                                                                                    [&::-webkit-slider-thumb]:bg-white
+                                                                                                                                                    [&::-webkit-slider-thumb]:shadow-[0_0_0_4px_rgba(37,99,235,1)]
+                                                                                                                                                    [&::-webkit-slider-thumb]:rounded-full
+                                                                                                                                                    [&::-webkit-slider-thumb]:transition-all
+                                                                                                                                                    [&::-webkit-slider-thumb]:duration-150
+                                                                                                                                                    [&::-webkit-slider-thumb]:ease-in-out
+                                                                                                                                                    dark:[&::-webkit-slider-thumb]:bg-neutral-700
 
-                                                                                                                                            [&::-moz-range-thumb]:w-2.5
-                                                                                                                                            [&::-moz-range-thumb]:h-2.5
-                                                                                                                                            [&::-moz-range-thumb]:appearance-none
-                                                                                                                                            [&::-moz-range-thumb]:bg-white
-                                                                                                                                            [&::-moz-range-thumb]:border-4
-                                                                                                                                            [&::-moz-range-thumb]:border-emerald-400
-                                                                                                                                            [&::-moz-range-thumb]:rounded-full
-                                                                                                                                            [&::-moz-range-thumb]:transition-all
-                                                                                                                                            [&::-moz-range-thumb]:duration-150
-                                                                                                                                            [&::-moz-range-thumb]:ease-in-out
+                                                                                                                                                    [&::-moz-range-thumb]:w-2.5
+                                                                                                                                                    [&::-moz-range-thumb]:h-2.5
+                                                                                                                                                    [&::-moz-range-thumb]:appearance-none
+                                                                                                                                                    [&::-moz-range-thumb]:bg-white
+                                                                                                                                                    [&::-moz-range-thumb]:border-4
+                                                                                                                                                    [&::-moz-range-thumb]:border-emerald-400
+                                                                                                                                                    [&::-moz-range-thumb]:rounded-full
+                                                                                                                                                    [&::-moz-range-thumb]:transition-all
+                                                                                                                                                    [&::-moz-range-thumb]:duration-150
+                                                                                                                                                    [&::-moz-range-thumb]:ease-in-out
 
-                                                                                                                                            [&::-webkit-slider-runnable-track]:w-full
-                                                                                                                                            [&::-webkit-slider-runnable-track]:h-2
-                                                                                                                                            [&::-webkit-slider-runnable-track]:bg-gray-100
-                                                                                                                                            [&::-webkit-slider-runnable-track]:rounded-full
-                                                                                                                                            dark:[&::-webkit-slider-runnable-track]:bg-neutral-700
+                                                                                                                                                    [&::-webkit-slider-runnable-track]:w-full
+                                                                                                                                                    [&::-webkit-slider-runnable-track]:h-2
+                                                                                                                                                    [&::-webkit-slider-runnable-track]:bg-gray-100
+                                                                                                                                                    [&::-webkit-slider-runnable-track]:rounded-full
+                                                                                                                                                    dark:[&::-webkit-slider-runnable-track]:bg-neutral-700
 
-                                                                                                                                            [&::-moz-range-track]:w-full
-                                                                                                                                            [&::-moz-range-track]:h-2
-                                                                                                                                            [&::-moz-range-track]:bg-gray-100
-                                                                                                                                            [&::-moz-range-track]:rounded-full"
+                                                                                                                                                    [&::-moz-range-track]:w-full
+                                                                                                                                                    [&::-moz-range-track]:h-2
+                                                                                                                                                    [&::-moz-range-track]:bg-gray-100
+                                                                                                                                                    [&::-moz-range-track]:rounded-full"
                             id="steps-range-slider-usage" aria-orientation="horizontal" min="1" max="18" step="1"
                             x-model="charsLength" @input="generatePassword()">
                     </div>
