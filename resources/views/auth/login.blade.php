@@ -9,36 +9,6 @@
 
 <div x-data="recaptchaHandler()" class="bg-white dark:bg-gray-900" x-cloak>
 
-    {{-- <div class="max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14 mx-auto">
-        <div
-            class="min-h-[35vh] md:min-h-[75vh] bg-[url('https://images.unsplash.com/photo-1616763355603-9755a640a287?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1470&q=80')] bg-center bg-cover bg-no-repeat relative rounded-xl">
-            <div
-                class="absolute bottom-0 start-0 end-0 max-w-xs text-center mx-auto p-6 md:start-auto md:text-start md:mx-0">
-                <!-- Card -->
-                <div class="px-5 py-4 inline-block bg-white rounded-lg md:p-7 dark:bg-neutral-800">
-                    <div class="hidden md:block">
-                        <h3 class="text-lg font-bold text-gray-800 sm:text-2xl dark:text-neutral-200">How does Preline
-                            work?</h3>
-                        <p class="mt-2 text-gray-800 dark:text-neutral-200">Learn more about Preline.</p>
-                    </div>
-
-                    <div class="md:mt-16">
-                        <a class="flex items-center gap-2 text-sm font-medium text-gray-800 hover:text-gray-500 focus:outline-hidden focus:text-gray-500 dark:text-white dark:hover:text-neutral-400 dark:focus:text-neutral-400"
-                            href="#">
-                            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="5 3 19 12 5 21 5 3" />
-                            </svg>
-                            Watch our story
-                        </a>
-                    </div>
-                </div>
-                <!-- End Card -->
-            </div>
-        </div>
-    </div> --}}
-
     <div class="flex justify-center h-screen">
         <div
             class="bg-center bg-cover bg-no-repeat relative block lg:w-2/3 bg-[url('https://images.unsplash.com/photo-1665686374006-b8f04cf62d57?ixlib=rb-4.0.3&ixid=MnwxMjA3fDF8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1020&q=80')]">
@@ -59,7 +29,7 @@
                         {{-- <img class="w-auto h-12 sm:h-16" src="{{ asset('img/sanggaha link.png') }}"
                             alt="site logo"> --}}
                     </div>
-                    <p class="mt-2 text-2xl font-bold text-gray-500 dark:text-gray-300">Balé Sanggaha</p>
+                    <p class="mt-2 text-2xl font-bold text-gray-500 dark:text-gray-300">Rakaca Platform</p>
                     <p class="mt-5 text-gray-500 dark:text-gray-300">Sign in</p>
                 </div>
 
@@ -105,7 +75,7 @@
                                 </div>
                             </button>
 
-                            <a href="#_"
+                            {{-- <a href="#_"
                                 class="box-border relative z-30 inline-flex items-center justify-center w-auto px-8 py-3 overflow-hidden font-bold text-white transition-all duration-300 bg-teal-600 rounded-md cursor-pointer group ring-offset-2 ring-1 ring-teal-300 ring-offset-teal-200 hover:ring-offset-teal-500 ease focus:outline-none">
                                 <span
                                     class="absolute bottom-0 right-0 w-8 h-20 -mb-8 -mr-5 transition-all duration-300 ease-out transform rotate-45 translate-x-1 bg-white opacity-10 group-hover:translate-x-0"></span>
@@ -119,7 +89,7 @@
                                     </svg>
                                     Button Text
                                 </span>
-                            </a>
+                            </a> --}}
                         </div>
 
                     </form>

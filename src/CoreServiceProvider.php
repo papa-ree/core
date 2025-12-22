@@ -25,12 +25,6 @@ class CoreServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->registerCommands();
-
-        $helper = __DIR__ . 'Helpers/helper.php';
-
-        if (file_exists($helper)) {
-            require_once $helper;
-        }
     }
 
     protected function registerCommands(): void
