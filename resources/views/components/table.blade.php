@@ -1,8 +1,12 @@
 @props(['links' => null, 'header' => false, 'customHeader' => false, 'activeFilters' => []])
 <div
-    class="p-4 overflow-hidden bg-white border border-gray-200 shadow-sm dark:bg-gray-800 rounded-xl dark:border-gray-700 sm:p-6">
+    class="p-4 relative overflow-hidden bg-white border border-gray-200 shadow-sm dark:bg-gray-800 rounded-xl dark:border-gray-700 sm:p-6">
+
+    <div class="absolute top-0 z-20 rounded-lg start-0 size-full backdrop-blur-sm bg-white/30 dark:bg-neutral-800/40"
+        wire:loading wire:target.except='query'></div>
 
     <div class="relative">
+
 
         {{-- table header --}}
         @if ($header)
@@ -72,8 +76,7 @@
         @endif
         {{-- end table header --}}
 
-        <div class="absolute top-0 z-50 rounded-lg start-0 size-full backdrop-blur-sm bg-white/30 dark:bg-neutral-800/40"
-            wire:loading wire:target.except='query'></div>
+
 
         <div class="absolute z-50 transform -translate-x-1/2 -translate-y-1/2 top-1/2 start-1/2" wire:loading
             wire:target.except='query'>

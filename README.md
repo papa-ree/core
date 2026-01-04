@@ -125,6 +125,39 @@ public function resetAllFilters() {
 }
 ```
 
+#### 3. Item Actions (`core.shared-components.item-actions`)
+
+Komponen untuk tombol Edit, Delete (dengan konfirmasi dropdown), dan aksi tambahan (slot).
+
+```blade
+<livewire:core.shared-components.item-actions
+    :editUrl="route('items.edit', $item->id)"
+    :deleteId="$item->id"
+    confirmMessage="Yakin ingin menghapus data ini?"
+>
+    <!-- Slot Aksi Tambahan -->
+</livewire:core.shared-components.item-actions>
+```
+
+**Integrasi dengan Deletion Trait:**
+Komponen `item-actions` didesain untuk bekerja secara otomatis dengan trait penghapusan pada setiap package.
+
+1.  **Core Package**: Gunakan `Bale\Core\Traits\HasDeleteOption`.
+2.  **CMS Package**: Gunakan `Bale\Cms\Traits\HasSafeDelete` (untuk support tenant connection).
+
+**Cara Penggunaan (Contoh di CMS):**
+
+```php
+use Bale\Cms\Traits\HasSafeDelete;
+
+class YourComponent extends Component {
+    use HasSafeDelete;
+    protected string $modelClass = Post::class;
+}
+```
+
+Komponen akan otomatis memicu method `performDelete()` pada trait tersebut saat konfirmasi ditekan.
+
 ## Testing
 
 ```bash
