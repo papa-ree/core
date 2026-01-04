@@ -56,6 +56,75 @@ $core = new Bale\Core();
 echo $core->echoPhrase('Hello, Bale!');
 ```
 
+### Table Improvements (Filtering & Sorting)
+
+Komponen tabel di `bale-core` telah dilengkapi dengan fitur filtering dan sorting yang terintegrasi dengan Livewire.
+
+#### 1. Sorting dengan `x-core::table-th`
+
+Gunakan `x-core::table-th` di dalam slot `thead` untuk membuat header yang bisa diklik.
+
+```blade
+<x-slot name="thead">
+    <tr>
+        <x-core::table-th
+            label="Nama"
+            sortBy="name"
+            :sortField="$sortField"
+            :sortDirection="$sortDirection"
+        />
+    </tr>
+</x-slot>
+```
+
+**Di Livewire Component:**
+
+```php
+public $sortField = 'name';
+public $sortDirection = 'asc';
+
+public function sort($field) {
+    if ($this->sortField === $field) {
+        $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        $this->sortField = $field;
+        $this->sortDirection = 'asc';
+    }
+}
+```
+
+#### 2. Filtering dengan `x-core::table`
+
+Gunakan slot `filters` dan prop `activeFilters` untuk menambahkan UI filter.
+
+```blade
+<x-core::table
+    :links="$data"
+    header
+    :activeFilters="array_filter(['Status' => $filterStatus])"
+>
+    <x-slot name="filters">
+        <x-core::select-dropdown label="Status" wire:model.live="filterStatus">
+            <option value="">Semua</option>
+            <option value="active">Aktif</option>
+        </x-core::select-dropdown>
+    </x-slot>
+    ...
+</x-core::table>
+```
+
+**Di Livewire Component (Untuk Reset):**
+
+```php
+public function resetFilter($field) {
+    if ($field === 'Status') $this->reset('filterStatus');
+}
+
+public function resetAllFilters() {
+    $this->reset(['filterStatus', 'query']);
+}
+```
+
 ## Testing
 
 ```bash

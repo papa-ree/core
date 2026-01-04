@@ -1,4 +1,4 @@
-@props(['links' => null, 'header' => false, 'customHeader' => false])
+@props(['links' => null, 'header' => false, 'customHeader' => false, 'activeFilters' => []])
 <div
     class="p-4 overflow-hidden bg-white border border-gray-200 shadow-sm dark:bg-gray-800 rounded-xl dark:border-gray-700 sm:p-6">
 
@@ -9,9 +9,64 @@
             @if ($customHeader)
                 {{ $customHeader }}
             @else
-                <div class="w-full pb-4 sm:flex sm:justify-end sm:items-center">
-                    {{-- search input --}}
-                    <x-core::table-search-input placeholder="Search" />
+                <div class="w-full pb-4 sm:flex sm:justify-between sm:items-center gap-4">
+                    {{-- active filters --}}
+                    <div class="flex flex-wrap items-center gap-2 mb-4 sm:mb-0">
+                        @if (isset($activeFilters) && count($activeFilters) > 0)
+                            <span class="text-xs font-medium text-gray-500 dark:text-gray-400 mr-1">Active Filters:</span>
+                            @foreach ($activeFilters as $field => $value)
+                                @if($value)
+                                    <span
+                                        class="inline-flex items-center gap-x-1.5 py-1.5 ps-3 pe-2 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-800/30 dark:text-emerald-400">
+                                        {{ is_array($value) ? implode(', ', $value) : $value }}
+                                        <button type="button" wire:click="resetFilter('{{ $field }}')"
+                                            class="shrink-0 size-4 inline-flex items-center justify-center rounded-full hover:bg-emerald-200 dark:hover:bg-emerald-800 focus:outline-none focus:bg-emerald-200 dark:focus:bg-emerald-800">
+                                            <x-lucide-x class="size-3" />
+                                        </button>
+                                    </span>
+                                @endif
+                            @endforeach
+                            <button type="button" wire:click="resetAllFilters"
+                                class="text-xs font-semibold text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors ps-2 border-l border-gray-200 dark:border-gray-700 ml-1">
+                                Clear All
+                            </button>
+                        @endif
+                    </div>
+
+                    <div class="flex items-center gap-x-3 ml-auto">
+                        {{-- filter dropdown --}}
+                        @if (isset($filters))
+                            <div class="hs-dropdown relative inline-flex [--auto-close:inside] [--placement:bottom-right]">
+                                <button id="hs-dropdown-filters" type="button"
+                                    class="hs-dropdown-toggle py-2.5 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
+                                    <x-lucide-filter class="size-4" />
+                                    Filter
+                                    <svg class="hs-dropdown-open:rotate-180 size-4 text-gray-600 dark:text-neutral-400"
+                                        xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="m6 9 6 6 6-6" />
+                                    </svg>
+                                </button>
+
+                                <div class="hs-dropdown-menu transition-[opacity,margin] duration hs-dropdown-open:opacity-100 opacity-0 hidden min-w-80 bg-white shadow-md rounded-lg p-4 mt-2 dark:bg-neutral-800 dark:border dark:border-neutral-700 dark:divide-neutral-700 z-[60]"
+                                    aria-labelledby="hs-dropdown-filters">
+                                    <div class="space-y-4">
+                                        {{ $filters }}
+
+                                        <div class="pt-2 flex items-center justify-end gap-x-2">
+                                            <button type="button" wire:click="resetAllFilters"
+                                                class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
+                                                Reset
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
+                        {{-- search input --}}
+                        <x-core::table-search-input placeholder="Search" />
+                    </div>
                 </div>
             @endif
         @endif

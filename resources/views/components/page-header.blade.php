@@ -1,21 +1,35 @@
-@props(['title', 'subtitle'])
-{{-- <div class="w-full mx-auto mb-4 overflow-hidden border border-gray-200 sm:mb-6 dark:border-gray-700 rounded-xl">
-    <div class="relative bg-white dark:bg-gray-800">
-        <div class="flex-row items-center justify-between p-4 space-y-3 sm:p-6 sm:flex sm:space-y-0 sm:space-x-4">
-            <div>
-                <p class="text-sm md:text-[17px] tracking-wide font-medium sm:font-semibold dark:text-white">
-                    {{ __($title) }}
-                </p>
+@props(['title', 'subtitle' => null, 'gradient' => false])
+
+@if($gradient)
+    {{-- Gradient Header Style --}}
+    <div class="relative overflow-hidden p-8 mb-8 text-white rounded-2xl shadow-xl"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
+        <div class="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full -ml-24 -mb-24"></div>
+
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between">
+            <div class="mb-4 md:mb-0">
+                <h1 class="text-3xl font-bold text-white md:text-4xl mb-2">{{ __($title) }}</h1>
+                @if($subtitle)
+                    <p class="text-white/90 text-lg">{{ __($subtitle) }}</p>
+                @endif
             </div>
-            {{ $action }}
+            @isset($action)
+                <div class="shrink-0">{{ $action }}</div>
+            @endisset
         </div>
     </div>
-</div> --}}
-
-<div class="pb-5 sm:flex sm:items-center sm:justify-between">
-    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-200">{{ $title }}</h3>
-    @isset($action)
-        <div class="flex items-center">{{ $action }}</div>
-    @endisset
-
-</div>
+@else
+    {{-- Standard Header Style --}}
+    <div class="pb-5 mb-6 border-b border-gray-200 dark:border-gray-700 sm:flex sm:items-center sm:justify-between">
+        <div>
+            <h3 class="text-2xl font-bold text-gray-900 dark:text-white">{{ __($title) }}</h3>
+            @if($subtitle)
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ __($subtitle) }}</p>
+            @endif
+        </div>
+        @isset($action)
+            <div class="mt-3 flex sm:mt-0 sm:ml-4">{{ $action }}</div>
+        @endisset
+    </div>
+@endif
