@@ -17,7 +17,7 @@
         @foreach ($items as $key => $item)
             <label for="{{ $key }}"
                 class="flex w-full p-3 text-sm transition duration-200 ease-out bg-white hover:bg-gray-200 hover:rounded-lg dark:bg-neutral-900 hover:dark:border-neutral-700 dark:text-neutral-400"
-                wire:key="{{ $key }}" @click="$wire.set({{'\'' . $model . '\''}}, {{ '\'' . $item[$labelField] . '\'' }})">
+                wire:key="{{ $key }}" @click="$wire.set({{'\'' . $model . '\''}}, {{ '\'' . $item[$valueField] . '\'' }})">
                 <span class="text-sm text-gray-500 dark:text-neutral-400">{{ $item[$labelField] }}</span>
                 <input type="radio" name="{{ $model }}" wire:model='{{ $model }}' value="{{ $item[$valueField] }}"
                     class="shrink-0 ms-auto mt-0.5 border-gray-200 rounded-full text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
