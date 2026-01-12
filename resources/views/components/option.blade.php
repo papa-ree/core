@@ -1,6 +1,7 @@
 @props(['item' => '', 'itemId' => '', 'route' => '', 'deleteButton' => false])
 
-<div class="hs-dropdown shrink-0 relative inline-block select-none items-center gap-x-3 [--placement:bottom-right]">
+<div class="hs-dropdown shrink-0 relative inline-block select-none items-center gap-x-3 [--placement:bottom-right]"
+    x-init="window.HSStaticMethods.autoInit(['dropdown'])">
 
     {{-- edit button --}}
     <a href="{{ route($route, $item) }}" wire:navigate.hover

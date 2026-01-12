@@ -13,7 +13,8 @@
 
     {{-- Delete Action with Dropdown Confirmation --}}
     @if($deleteId)
-        <div class="hs-dropdown relative inline-flex [--placement:bottom-right]">
+        <div class="hs-dropdown relative inline-flex [--placement:bottom-right]"
+            x-init="window.HSStaticMethods.autoInit(['dropdown'])">
             <button id="hs-delete-dropdown-{{ $deleteId }}" type="button"
                 class="hs-dropdown-toggle p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/20 rounded transition-all"
                 title="Delete">
