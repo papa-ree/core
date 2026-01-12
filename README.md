@@ -158,6 +158,92 @@ class YourComponent extends Component {
 
 Komponen akan otomatis memicu method `performDelete()` pada trait tersebut saat konfirmasi ditekan.
 
+> [!IMPORTANT] > **Gunakan `wire:key` di Loop**
+> Saat menggunakan `item-actions` di dalam loop (misalnya tabel), **WAJIB** menambahkan `wire:key` yang unik:
+>
+> ```blade
+> <livewire:core.shared-components.item-actions
+>     :editUrl="route('posts.edit', $post->id)"
+>     :deleteId="$post->id"
+>     wire:key="item-actions-{{ $post->id }}"
+>     confirmMessage="Yakin ingin menghapus?"
+> />
+> ```
+>
+> Tanpa `wire:key`, Livewire akan kehilangan tracking komponen setelah update (seperti setelah delete), menyebabkan error `Method [delete] not found`.
+
+#### 4. Breadcrumb Component (`x-core::breadcrumb`)
+
+Komponen breadcrumb yang unified dan reusable untuk navigasi di seluruh package. Mendukung full breadcrumb trail dan simple navigation.
+
+**Props:**
+
+- `items` (array): Array of breadcrumb items, setiap item berisi:
+  - `label` (string): Label yang ditampilkan
+  - `route` (string): Nama route Laravel
+  - `params` (optional): Parameter untuk route
+  - `icon` (optional): Nama icon Lucide (tanpa prefix `lucide-`)
+- `active` (string): Label untuk item aktif/current page
+- `back` (boolean): Mode simple back link
+- `href` (string): URL untuk back link mode
+- `label` (string): Label untuk back link mode
+
+**Contoh 1: Full Breadcrumb Trail**
+
+```blade
+{{-- Static breadcrumb --}}
+<x-core::breadcrumb
+    :items="[
+        ['label' => 'Posts', 'route' => 'posts.index'],
+        ['label' => 'Category', 'route' => 'categories.show', 'params' => $categoryId]
+    ]"
+    :active="'Edit: ' . $title"
+/>
+
+{{-- Dynamic breadcrumb dengan PHP --}}
+@php
+    $breadcrumbs = [
+        ['label' => 'Navigations', 'route' => 'navigations.index']
+    ];
+    if ($parent) {
+        $breadcrumbs[] = [
+            'label' => $parent['name'],
+            'route' => 'navigations.edit',
+            'params' => $parent['slug'],
+            'icon' => 'menu'
+        ];
+    }
+@endphp
+<x-core::breadcrumb :items="$breadcrumbs" :active="'Edit: ' . $name" />
+```
+
+**Contoh 2: Simple Breadcrumb (satu level)**
+
+```blade
+<x-core::breadcrumb
+    :items="[['label' => 'Posts', 'route' => 'posts.index']]"
+    active="Create New Post"
+/>
+```
+
+**Contoh 3: Back Link Mode** _(opsional, untuk kompatibilitas)_
+
+```blade
+<x-core::breadcrumb
+    back
+    :href="route('posts.index')"
+    label="Post List"
+    active="Create New Post"
+/>
+```
+
+**Best Practices:**
+
+- Gunakan breadcrumb di semua halaman create/edit untuk konsistensi navigasi
+- Untuk edit pages, limit panjang title: `Illuminate\Support\Str::limit($title, 20)`
+- Gunakan icon untuk parent items di nested navigation
+- Breadcrumb akan otomatis support dark mode dan Livewire navigation
+
 ## Testing
 
 ```bash
