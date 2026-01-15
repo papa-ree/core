@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
 
 <head>
     <meta charset="utf-8">
@@ -38,23 +38,17 @@
         <span class="sr-only">preloader</span>
     </div>
 
-    {{-- <livewire:core.shared-components.topbar /> --}}
+    <livewire:core.shared-components.topbar />
 
-    {{--
     @can('dashboard')
-    <livewire:rakaca.shared-components.rakaca-landlord-sidebar />
+        <livewire:rakaca.shared-components.rakaca-landlord-sidebar />
     @endcan
-
-    @role('guest')
-    <livewire:rakaca.shared-components.rakaca-guest-sidebar />
-    @endrole --}}
 
     <div class="w-full px-4 pt-5 pb-10 sm:px-6 md:px-8 lg:pl-72">
         <main>
             {{ $slot }}
         </main>
     </div>
-
     @livewireScripts
 
     <x-core::toast />
