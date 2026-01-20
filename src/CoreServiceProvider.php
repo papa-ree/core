@@ -24,6 +24,11 @@ class CoreServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->mergeConfigFrom(
+            __DIR__ . '/../config/core.php',
+            'core'
+        );
+
         $this->registerCommands();
     }
 
@@ -109,7 +114,7 @@ class CoreServiceProvider extends ServiceProvider
 
         // Publish config
         $this->publishes([
-            __DIR__ . '/../config/bale-core.php' => config_path('bale-core.php'),
+            __DIR__ . '/../config/core.php' => config_path('core.php'),
         ], 'bale-core:config');
 
         $this->publishes($this->getMigrations(), 'bale-core:migrations');
