@@ -40,9 +40,9 @@ class Cdn
         if (static::$cachedOrganizationSlug === null) {
             // Check if organization_slug() function exists (from CMS package)
             if (function_exists('organization_slug')) {
-                static::$cachedOrganizationSlug = organization_slug() ?? '';
+                static::$cachedOrganizationSlug = organization_slug() ?? session('bale_active_slug');
             } else {
-                static::$cachedOrganizationSlug = '';
+                static::$cachedOrganizationSlug = session('bale_active_slug');
             }
         }
 
