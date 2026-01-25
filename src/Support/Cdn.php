@@ -10,21 +10,21 @@ class Cdn
      * Cache untuk organization slug agar tidak query database berulang kali
      * @var string|null
      */
-    protected static ?string $cachedOrganizationSlug = null;
+    protected ?string $cachedOrganizationSlug = null;
 
-    public static function enabled(): bool
+    public function enabled(): bool
     {
         return (bool) config('core.cdn.enabled');
     }
 
-    public static function baseUrl(): ?string
+    public function baseUrl(): ?string
     {
         $url = config('core.cdn.base_url');
 
         return $url ? rtrim($url, '/') : null;
     }
 
-    public static function prefix(): string
+    public function prefix(): string
     {
         return trim(config('core.cdn.prefix'), '/');
     }
@@ -33,13 +33,15 @@ class Cdn
      * Get organization slug from database with caching
      * Menggunakan helper organization_slug() yang sudah ada
      */
-    protected static function organizationSlug(): string
+    protected function organizationSlug(): string
     {
-        if (static::$cachedOrganizationSlug === null) {
-            static::$cachedOrganizationSlug = organization_slug() ?? '';
+        if ($this->cachedOrganizationSlug === null) {
+            $this->cachedOrganizationSlug = function_exists('organization_slug')
+                ? (organization_slug() ?? '')
+                : '';
         }
 
-        return static::$cachedOrganizationSlug;
+        return $this->cachedOrganizationSlug;
     }
 
     /**
@@ -65,17 +67,17 @@ class Cdn
      * - Custom: cdn_url('images/banner.jpg', 'custom-folder')
      *   → https://cdn.example.com/bale/custom-folder/images/banner.jpg
      */
-    public static function url(string $path, ?string $customDir = null): string
+    public function url(string $path, ?string $customDir = null): string
     {
         $path = ltrim($path, '/');
 
-        if (!static::enabled() || !static::baseUrl()) {
-            return static::fallback($path);
+        if (!$this->enabled() || !$this->baseUrl()) {
+            return $this->fallback($path);
         }
 
         $segments = [
-            static::baseUrl(),
-            static::prefix(),
+            $this->baseUrl(),
+            $this->prefix(),
         ];
 
         // Jika ada custom directory, gunakan itu
@@ -85,7 +87,7 @@ class Cdn
         // Jika path diawali 'shared/', skip organization_slug
         elseif (!Str::startsWith($path, 'shared/')) {
             // Hanya tambahkan organization_slug jika bukan shared dan tidak ada custom dir
-            $orgSlug = static::organizationSlug();
+            $orgSlug = $this->organizationSlug();
 
             // Jika path diawali dengan organization slug, hapus agar tidak double
             if ($orgSlug && Str::startsWith($path, $orgSlug . '/')) {
@@ -112,12 +114,12 @@ class Cdn
      * @param string|null $customDir Custom directory (opsional)
      * @return string
      */
-    public static function asset(string $path, ?string $customDir = null): string
+    public function asset(string $path, ?string $customDir = null): string
     {
-        return static::url($path, $customDir);
+        return $this->url($path, $customDir);
     }
 
-    protected static function fallback(string $path): string
+    protected function fallback(string $path): string
     {
         return '/' . $path;
     }

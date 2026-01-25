@@ -27,7 +27,7 @@ if (!function_exists('cdn_asset')) {
      */
     function cdn_asset(string $path, ?string $customDir = null): string
     {
-        return Cdn::asset($path, $customDir);
+        return app('cdn')->asset($path, $customDir);
     }
 }
 
@@ -42,7 +42,7 @@ if (!function_exists('cdn_url')) {
      */
     function cdn_url(string $path, ?string $customDir = null): string
     {
-        return Cdn::url($path, $customDir);
+        return app('cdn')->url($path, $customDir);
     }
 }
 
@@ -55,6 +55,6 @@ if (!function_exists('cdn_enabled')) {
      */
     function cdn_enabled(): bool
     {
-        return Cdn::enabled();
+        return app('cdn')->enabled();
     }
 }
