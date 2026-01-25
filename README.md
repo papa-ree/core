@@ -1,272 +1,269 @@
-# Core for bale
+# Bale Core Package
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/bale/core.svg?style=flat-square)](https://packagist.org/packages/bale/core)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/bale/core/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/bale/core/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/bale/core/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/bale/core/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/bale/core.svg?style=flat-square)](https://packagist.org/packages/bale/core)
+Core functionality and utilities for the Bale application ecosystem.
 
-This is where your description should go. Limit it to a paragraph or two. Consider adding a small example.
+## Features
 
-## Support us
-
-[<img src="https://github-ads.s3.eu-central-1.amazonaws.com/core.jpg?t=1" width="419px" />](https://spatie.be/github-ad-click/core)
-
-We invest a lot of resources into creating [best in class open source packages](https://spatie.be/open-source). You can support us by [buying one of our paid products](https://spatie.be/open-source/support-us).
-
-We highly appreciate you sending us a postcard from your hometown, mentioning which of our package(s) you are using. You'll find our address on [our contact page](https://spatie.be/about-us). We publish all received postcards on [our virtual postcard wall](https://spatie.be/open-source/postcards).
+- 🔐 Authentication & Authorization
+- 🌍 CDN Support with Multiple Access Methods
+- 🎨 Blade Components
+- 🔧 Utilities & Helpers
 
 ## Installation
-
-You can install the package via composer:
 
 ```bash
 composer require bale/core
 ```
 
-You can publish and run the migrations with:
+## CDN Asset Management
+
+The Core package provides flexible CDN support with **three different methods** to access CDN functionality.
+
+### Configuration
+
+Add to your `.env` file:
+
+```env
+CORE_CDN_ENABLED=true
+CORE_CDN_URL=https://cdn.example.com
+CORE_CDN_PREFIX=bale
+```
+
+Publish the config (optional):
 
 ```bash
-php artisan vendor:publish --tag="core-migrations"
-php artisan migrate
+php artisan vendor:publish --tag=bale-core:config
 ```
 
-You can publish the config file with:
+---
 
-```bash
-php artisan vendor:publish --tag="core-config"
-```
+### Method 1: CDN Facade (Recommended) ⭐
 
-This is the contents of the published config file:
-
-```php
-return [
-];
-```
-
-Optionally, you can publish the views using
-
-```bash
-php artisan vendor:publish --tag="core-views"
-```
-
-## Usage
-
-```php
-$core = new Bale\Core();
-echo $core->echoPhrase('Hello, Bale!');
-```
-
-### Table Improvements (Filtering & Sorting)
-
-Komponen tabel di `bale-core` telah dilengkapi dengan fitur filtering dan sorting yang terintegrasi dengan Livewire.
-
-#### 1. Sorting dengan `x-core::table-th`
-
-Gunakan `x-core::table-th` di dalam slot `thead` untuk membuat header yang bisa diklik.
+**Usage in Blade Views:**
 
 ```blade
-<x-slot name="thead">
-    <tr>
-        <x-core::table-th
-            label="Nama"
-            sortBy="name"
-            :sortField="$sortField"
-            :sortDirection="$sortDirection"
-        />
-    </tr>
-</x-slot>
+{{-- Organization-specific path --}}
+<img src="{{ CDN::asset('thumbnails/image.jpg') }}">
+{{-- Output: https://cdn.example.com/bale/org-slug/thumbnails/image.jpg --}}
+
+{{-- Shared path (no organization_slug) --}}
+<img src="{{ CDN::asset('shared/logo.png') }}">
+{{-- Output: https://cdn.example.com/bale/shared/logo.png --}}
+
+{{-- Custom directory --}}
+<img src="{{ CDN::asset('banner.jpg', 'marketing') }}">
+{{-- Output: https://cdn.example.com/bale/marketing/banner.jpg --}}
 ```
 
-**Di Livewire Component:**
+**Usage in Controllers/Classes:**
 
 ```php
-public $sortField = 'name';
-public $sortDirection = 'asc';
+use CDN;
 
-public function sort($field) {
-    if ($this->sortField === $field) {
-        $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-        $this->sortField = $field;
-        $this->sortDirection = 'asc';
+class PostController
+{
+    public function show($id)
+    {
+        $post = Post::find($id);
+        $thumbnailUrl = CDN::asset('thumbnails/' . $post->thumbnail);
+
+        return view('posts.show', compact('post', 'thumbnailUrl'));
     }
 }
 ```
 
-#### 2. Filtering dengan `x-core::table`
-
-Gunakan slot `filters` dan prop `activeFilters` untuk menambahkan UI filter.
-
-```blade
-<x-core::table
-    :links="$data"
-    header
-    :activeFilters="array_filter(['Status' => $filterStatus])"
->
-    <x-slot name="filters">
-        <x-core::select-dropdown label="Status" wire:model.live="filterStatus">
-            <option value="">Semua</option>
-            <option value="active">Aktif</option>
-        </x-core::select-dropdown>
-    </x-slot>
-    ...
-</x-core::table>
-```
-
-**Di Livewire Component (Untuk Reset):**
+**Available Methods:**
 
 ```php
-public function resetFilter($field) {
-    if ($field === 'Status') $this->reset('filterStatus');
-}
-
-public function resetAllFilters() {
-    $this->reset(['filterStatus', 'query']);
-}
+CDN::asset('path/to/file.jpg');           // Generate CDN URL
+CDN::url('path/to/file.jpg');             // Alias for asset()
+CDN::enabled();                            // Check if CDN is enabled
+CDN::baseUrl();                           // Get CDN base URL
+CDN::prefix();                            // Get CDN prefix
 ```
 
-#### 3. Item Actions (`core.shared-components.item-actions`)
+---
 
-Komponen untuk tombol Edit, Delete (dengan konfirmasi dropdown), dan aksi tambahan (slot).
+### Method 2: View Composer
+
+The `$cdn` variable is available in **all** Blade views automatically.
+
+**Usage:**
 
 ```blade
-<livewire:core.shared-components.item-actions
-    :editUrl="route('items.edit', $item->id)"
-    :deleteId="$item->id"
-    confirmMessage="Yakin ingin menghapus data ini?"
->
-    <!-- Slot Aksi Tambahan -->
-</livewire:core.shared-components.item-actions>
+<img src="{{ $cdn->asset('thumbnails/image.jpg') }}">
+<img src="{{ $cdn->url('shared/logo.png') }}">
+
+@if($cdn->enabled())
+    {{-- CDN is active --}}
+@endif
 ```
 
-**Integrasi dengan Deletion Trait:**
-Komponen `item-actions` didesain untuk bekerja secara otomatis dengan trait penghapusan pada setiap package.
+**Advantages:**
 
-1.  **Core Package**: Gunakan `Bale\Core\Traits\HasDeleteOption`.
-2.  **CMS Package**: Gunakan `Bale\Cms\Traits\HasSafeDelete` (untuk support tenant connection).
+- No need to import anything
+- Object-oriented approach
+- Available everywhere
 
-**Cara Penggunaan (Contoh di CMS):**
+---
+
+### Method 3: Model Accessors
+
+For model-based images, use accessors for automatic URL generation.
+
+**Example in Post Model:**
 
 ```php
-use Bale\Cms\Traits\HasSafeDelete;
+use Bale\Core\Support\Cdn;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
-class YourComponent extends Component {
-    use HasSafeDelete;
-    protected string $modelClass = Post::class;
+protected function thumbnailUrl(): Attribute
+{
+    return Attribute::make(
+        get: fn() => $this->thumbnail
+            ? Cdn::asset('thumbnails/' . $this->thumbnail)
+            : null,
+    );
 }
 ```
 
-Komponen akan otomatis memicu method `performDelete()` pada trait tersebut saat konfirmasi ditekan.
-
-> [!IMPORTANT] > **Gunakan `wire:key` di Loop**
-> Saat menggunakan `item-actions` di dalam loop (misalnya tabel), **WAJIB** menambahkan `wire:key` yang unik:
->
-> ```blade
-> <livewire:core.shared-components.item-actions
->     :editUrl="route('posts.edit', $post->id)"
->     :deleteId="$post->id"
->     wire:key="item-actions-{{ $post->id }}"
->     confirmMessage="Yakin ingin menghapus?"
-> />
-> ```
->
-> Tanpa `wire:key`, Livewire akan kehilangan tracking komponen setelah update (seperti setelah delete), menyebabkan error `Method [delete] not found`.
-
-#### 4. Breadcrumb Component (`x-core::breadcrumb`)
-
-Komponen breadcrumb yang unified dan reusable untuk navigasi di seluruh package. Mendukung full breadcrumb trail dan simple navigation.
-
-**Props:**
-
-- `items` (array): Array of breadcrumb items, setiap item berisi:
-  - `label` (string): Label yang ditampilkan
-  - `route` (string): Nama route Laravel
-  - `params` (optional): Parameter untuk route
-  - `icon` (optional): Nama icon Lucide (tanpa prefix `lucide-`)
-- `active` (string): Label untuk item aktif/current page
-- `back` (boolean): Mode simple back link
-- `href` (string): URL untuk back link mode
-- `label` (string): Label untuk back link mode
-
-**Contoh 1: Full Breadcrumb Trail**
+**Usage in Views:**
 
 ```blade
-{{-- Static breadcrumb --}}
-<x-core::breadcrumb
-    :items="[
-        ['label' => 'Posts', 'route' => 'posts.index'],
-        ['label' => 'Category', 'route' => 'categories.show', 'params' => $categoryId]
-    ]"
-    :active="'Edit: ' . $title"
-/>
-
-{{-- Dynamic breadcrumb dengan PHP --}}
-@php
-    $breadcrumbs = [
-        ['label' => 'Navigations', 'route' => 'navigations.index']
-    ];
-    if ($parent) {
-        $breadcrumbs[] = [
-            'label' => $parent['name'],
-            'route' => 'navigations.edit',
-            'params' => $parent['slug'],
-            'icon' => 'menu'
-        ];
-    }
-@endphp
-<x-core::breadcrumb :items="$breadcrumbs" :active="'Edit: ' . $name" />
+@foreach($posts as $post)
+    <img src="{{ $post->thumbnail_url }}" alt="{{ $post->title }}">
+@endforeach
 ```
 
-**Contoh 2: Simple Breadcrumb (satu level)**
+**Advantages:**
+
+- Clean view code
+- Encapsulation in model
+- No repetition
+
+---
+
+## Helper Functions (Alternative)
+
+If you prefer traditional helper functions:
+
+```php
+// These are also available globally
+cdn_asset('thumbnails/image.jpg');
+cdn_url('thumbnails/image.jpg');
+cdn_enabled();
+```
+
+---
+
+## CDN Modes
+
+### 1. Organization-Specific (Default)
+
+Automatically adds `organization_slug` from the options table (CMS package required).
+
+```php
+CDN::asset('thumbnails/logo.jpg');
+// → https://cdn.example.com/bale/dinas-pendidikan/thumbnails/logo.jpg
+```
+
+### 2. Shared Assets
+
+Paths starting with `shared/` skip the organization_slug.
+
+```php
+CDN::asset('shared/default-avatar.png');
+// → https://cdn.example.com/bale/shared/default-avatar.png
+```
+
+### 3. Custom Directory
+
+Override the organization_slug with a custom directory.
+
+```php
+CDN::asset('hero.jpg', 'landing-pages');
+// → https://cdn.example.com/bale/landing-pages/hero.jpg
+```
+
+---
+
+## Fallback Behavior
+
+When CDN is **disabled** (`CORE_CDN_ENABLED=false`):
+
+```php
+CDN::asset('thumbnails/image.jpg');
+// → /thumbnails/image.jpg (local path)
+```
+
+---
+
+## Best Practices
+
+### ✅ Recommended
 
 ```blade
-<x-core::breadcrumb
-    :items="[['label' => 'Posts', 'route' => 'posts.index']]"
-    active="Create New Post"
-/>
+{{-- Use Facade for simplicity --}}
+<img src="{{ CDN::asset('thumbnails/' . $post->thumbnail) }}">
+
+{{-- Use Model Accessor for cleaner views --}}
+<img src="{{ $post->thumbnail_url }}">
 ```
 
-**Contoh 3: Back Link Mode** _(opsional, untuk kompatibilitas)_
+### ⚠️ Avoid
 
 ```blade
-<x-core::breadcrumb
-    back
-    :href="route('posts.index')"
-    label="Post List"
-    active="Create New Post"
-/>
+{{-- Don't hardcode CDN URLs --}}
+<img src="https://cdn.example.com/bale/org/thumbnails/image.jpg">
+
+{{-- Don't mix methods unnecessarily --}}
+<img src="{{ cdn_asset('thumbnails/' . $post->thumbnail) }}"> {{-- Use CDN::asset() instead --}}
 ```
 
-**Best Practices:**
+---
 
-- Gunakan breadcrumb di semua halaman create/edit untuk konsistensi navigasi
-- Untuk edit pages, limit panjang title: `Illuminate\Support\Str::limit($title, 20)`
-- Gunakan icon untuk parent items di nested navigation
-- Breadcrumb akan otomatis support dark mode dan Livewire navigation
+## Production Deployment
 
-## Testing
+After updating CDN configuration, clear caches:
 
 ```bash
-composer test
+composer dump-autoload --optimize
+php artisan optimize:clear
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
 ```
 
-## Changelog
+---
 
-Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
+## Troubleshooting
 
-## Contributing
+### Issue: CDN URLs not generated
 
-Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
+**Check:**
 
-## Security Vulnerabilities
+1. `CORE_CDN_ENABLED` is `true` in `.env`
+2. `CORE_CDN_URL` is set correctly
+3. Config cache cleared: `php artisan config:clear`
 
-Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
+### Issue: Organization slug missing
 
-## Credits
+**Check:**
 
-- [Papa Ree](https://github.com/papa-ree)
-- [All Contributors](../../contributors)
+1. CMS package is installed
+2. `organization_slug` exists in options table
+3. Helper `organization_slug()` is available
+
+### Issue: Facade not found
+
+**Check:**
+
+1. `composer dump-autoload` has been run
+2. Facade alias registered in `composer.json`
+3. Laravel service discovery is working
+
+---
 
 ## License
 
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+MIT License

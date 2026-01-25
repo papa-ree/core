@@ -71,7 +71,8 @@
                 "Bale\\Core\\CoreServiceProvider"
             ],
             "aliases": {
-                "Core": "Bale\\Core\\Facades\\Core"
+                "Core": "Bale\\Core\\Facades\\Core",
+                "CDN": "Bale\\Core\\Facades\\Cdn"
             }
         }
     },
