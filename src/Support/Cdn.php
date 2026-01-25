@@ -31,12 +31,19 @@ class Cdn
 
     /**
      * Get organization slug from database with caching
-     * Menggunakan helper organization_slug() yang sudah ada
+     * Menggunakan helper organization_slug() jika tersedia (dari CMS package)
+     * 
+     * @return string
      */
     protected static function organizationSlug(): string
     {
         if (static::$cachedOrganizationSlug === null) {
-            static::$cachedOrganizationSlug = organization_slug() ?? '';
+            // Check if organization_slug() function exists (from CMS package)
+            if (function_exists('organization_slug')) {
+                static::$cachedOrganizationSlug = organization_slug() ?? '';
+            } else {
+                static::$cachedOrganizationSlug = '';
+            }
         }
 
         return static::$cachedOrganizationSlug;
