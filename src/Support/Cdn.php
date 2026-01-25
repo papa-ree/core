@@ -30,23 +30,34 @@ class Cdn
     }
 
     /**
-     * Get organization slug from database with caching
-     * Menggunakan helper organization_slug() jika tersedia (dari CMS package)
-     * 
-     * @return string
+     * Callback for resolving organization slug
+     * @var callable|null
+     */
+    protected static $organizationSlugResolver;
+
+    /**
+     * Set the callback to resolve organization slug
+     */
+    public static function resolveOrganizationSlugUsing(callable $callback): void
+    {
+        static::$organizationSlugResolver = $callback;
+    }
+
+    /**
+     * Get organization slug using resolver or return empty string
      */
     protected static function organizationSlug(): string
     {
         if (static::$cachedOrganizationSlug === null) {
-            // Check if organization_slug() function exists (from CMS package)
-            if (function_exists('organization_slug')) {
-                static::$cachedOrganizationSlug = organization_slug() ?? session('bale_active_slug');
+            if (static::$organizationSlugResolver) {
+                static::$cachedOrganizationSlug = call_user_func(static::$organizationSlugResolver);
             } else {
-                static::$cachedOrganizationSlug = session('bale_active_slug');
+                static::$cachedOrganizationSlug = '';
             }
         }
 
-        return static::$cachedOrganizationSlug;
+        // Return empty string if null
+        return static::$cachedOrganizationSlug ?? '';
     }
 
     /**
