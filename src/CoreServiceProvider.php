@@ -29,11 +29,6 @@ class CoreServiceProvider extends ServiceProvider
             'core'
         );
 
-        // Register CDN as singleton
-        $this->app->singleton('cdn', function ($app) {
-            return new \Bale\Core\Support\Cdn();
-        });
-
         $this->registerCommands();
     }
 
@@ -82,7 +77,6 @@ class CoreServiceProvider extends ServiceProvider
         $this->registerViews();
         $this->registerBladeComponents();
         $this->registerLivewireComponents();
-        $this->registerViewComposers();
     }
 
     protected function registerViews(): void
@@ -121,7 +115,7 @@ class CoreServiceProvider extends ServiceProvider
         // Publish config
         $this->publishes([
             __DIR__ . '/../config/core.php' => config_path('core.php'),
-        ], 'bale-core:config');
+        ], 'core-config');
 
         $this->publishes($this->getMigrations(), 'bale-core:migrations');
 
@@ -209,13 +203,5 @@ class CoreServiceProvider extends ServiceProvider
             // Registrasi komponen ke Livewire
             Livewire::component($alias, $class);
         }
-    }
-
-    /**
-     * Register view composers.
-     */
-    protected function registerViewComposers(): void
-    {
-        \Illuminate\Support\Facades\View::composer('*', \Bale\Core\View\Composers\CdnViewComposer::class);
     }
 }

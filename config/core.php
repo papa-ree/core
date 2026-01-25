@@ -7,29 +7,27 @@ return [
     | CDN Configuration
     |--------------------------------------------------------------------------
     |
-    | Configure CDN (Content Delivery Network) settings for serving assets.
-    | CDN dapat digunakan secara global dan mendukung:
-    | - Custom directory paths
-    | - Shared paths (tanpa organization_slug)
-    | - Organization-specific paths (otomatis menggunakan organization_slug)
+    | Configure CDN settings for asset delivery.
+    | When enabled, assets will be served from the CDN URL.
     |
     */
     'cdn' => [
         /*
-         * Enable or disable CDN functionality
+         | Enable or disable CDN
+         | Set CORE_CDN_ENABLED=true in .env to activate
          */
         'enabled' => env('CORE_CDN_ENABLED', false),
 
         /*
-         * CDN Base URL
-         * Example: https://cdn.example.com
+         | CDN Base URL
+         | Example: https://cdn.ponorogo.go.id
          */
-        'base_url' => env('CORE_CDN_URL', null),
+        'base_url' => env('CORE_CDN_URL', ''),
 
         /*
-         * CDN Path Prefix
-         * Prefix yang ditambahkan setelah base URL
-         * Example: 'bale' will generate https://cdn.example.com/bale/...
+         | CDN Prefix/Bucket Name
+         | This will be added after base_url
+         | Example: 'bale' results in https://cdn.ponorogo.go.id/bale/...
          */
         'prefix' => env('CORE_CDN_PREFIX', 'bale'),
     ],

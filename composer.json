@@ -39,10 +39,7 @@
         "psr-4": {
             "Bale\\Core\\": "src/",
             "Bale\\Core\\Database\\Factories\\": "database/factories/"
-        },
-        "files": [
-            "src/helpers.php"
-        ]
+        }
     },
     "autoload-dev": {
         "psr-4": {
@@ -71,8 +68,7 @@
                 "Bale\\Core\\CoreServiceProvider"
             ],
             "aliases": {
-                "Core": "Bale\\Core\\Facades\\Core",
-                "CDN": "Bale\\Core\\Facades\\Cdn"
+                "Core": "Bale\\Core\\Facades\\Core"
             }
         }
     },
