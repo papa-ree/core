@@ -3,7 +3,7 @@
 <div class="mb-6">
     <div class="flex items-center gap-2 text-sm">
         @if ($back && $href && $label)
-            {{-- Back Link Mode (Simulating back-breadcrumb style within new UI) --}}
+            {{-- Back Link Mode (Simulating breadcrumb style within new UI) --}}
             <a href="{{ $href }}" wire:navigate.hover
                 class="inline-flex items-center gap-1.5 px-3 py-1.5 text-gray-600 hover:text-purple-600 dark:text-gray-400 dark:hover:text-purple-400 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-purple-300 dark:hover:border-purple-600 transition-all">
                 <x-lucide-arrow-left class="w-3.5 h-3.5" />
