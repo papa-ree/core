@@ -61,6 +61,9 @@ class CoreServiceProvider extends ServiceProvider
         app('router')->aliasMiddleware('role', RoleMiddleware::class);
         app('router')->aliasMiddleware('permission', PermissionMiddleware::class);
         app('router')->aliasMiddleware('role_or_permission', RoleOrPermissionMiddleware::class);
+
+        // Register custom localization middleware to the web group
+        app('router')->pushMiddlewareToGroup('web', \Bale\Core\Middleware\SetLocale::class);
         // app('router')->aliasMiddleware('abilities', CheckAbilities::class);
         // app('router')->aliasMiddleware('ability', CheckForAnyAbility::class);
         // 'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

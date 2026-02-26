@@ -1,0 +1,28 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('tenant_analytics', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('bale_id');
+            $table->enum('provider', ['umami']);
+            $table->uuid('website_id');
+            $table->string('domain')->nullable();
+            $table->boolean('enabled')->default(true);
+            $table->timestamps();
+
+            $table->index(['bale_id', 'enabled']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('tenant_analytics');
+    }
+};

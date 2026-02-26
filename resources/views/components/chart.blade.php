@@ -6,6 +6,10 @@
     'legendPosition' => 'top',
 ])
 
+@assets
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+@endassets
+
 <div x-data="{
         chartCanvas: null,
         chart: null,
@@ -62,10 +66,7 @@
 
 {{-- example --}}
 {{-- pie --}}
-{{-- <x-chart
-    type="pie"
-    :labels="$providers->pluck('name_provider')"
-    :datasets="[
+{{-- <x-chart type="pie" :labels="$providers->pluck('name_provider')" :datasets="[
         [
             'data' => $providers->pluck('total'),
             'backgroundColor' => [
@@ -75,14 +76,10 @@
                 '#dc2626',
             ],
         ]
-    ]"
-/> --}}
+    ]" /> --}}
 
 {{-- line --}}
-{{-- <x-chart
-    type="line"
-    :labels="['Jan', 'Feb', 'Mar', 'Apr']"
-    :datasets="[
+{{-- <x-chart type="line" :labels="['Jan', 'Feb', 'Mar', 'Apr']" :datasets="[
         [
             'label' => 'Pengguna',
             'data' => [120, 150, 180, 220],
@@ -90,15 +87,11 @@
             'backgroundColor' => 'rgba(37,99,235,.2)',
             'tension' => 0.4,
         ]
-    ]"
-/>
- --}}
+    ]" />
+--}}
 
- {{-- bar --}}
- {{-- <x-chart
-    type="bar"
-    :labels="['Desa A', 'Desa B', 'Desa C']"
-    :datasets="[
+{{-- bar --}}
+{{-- <x-chart type="bar" :labels="['Desa A', 'Desa B', 'Desa C']" :datasets="[
         [
             'label' => 'Fiber',
             'data' => [30, 50, 40],
@@ -109,6 +102,5 @@
             'data' => [20, 35, 25],
             'backgroundColor' => '#2563eb',
         ],
-    ]"
-/>
- --}}
+    ]" />
+--}}

@@ -23,6 +23,7 @@
         "laravel/socialite": "*",
         "league/flysystem-aws-s3-v3": "*",
         "mallardduck/blade-lucide-icons": "*",
+        "mcamara/laravel-localization": "*",
         "rtconner/laravel-tagging": "*",
         "socialiteproviders/keycloak": "*",
         "spatie/laravel-permission": "*"

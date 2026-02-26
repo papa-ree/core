@@ -31,4 +31,42 @@ return [
          */
         'prefix' => env('CORE_CDN_PREFIX', 'bale'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Analytics Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Konfigurasi untuk integrasi analytics eksternal.
+    | Saat ini mendukung Umami Analytics (self-hosted).
+    |
+    */
+    'analytics' => [
+        'umami' => [
+            /*
+             | URL instance Umami (self-hosted)
+             | Contoh: https://umami.ponorogo.go.id
+             */
+            'url' => env('UMAMI_URL', ''),
+
+            /*
+             | Umami API Token
+             | Buat di dashboard Umami: Settings → API Keys → Create API Key
+             */
+            'api_key' => env('UMAMI_API_KEY', ''),
+
+            /*
+             | Timezone untuk penghitungan tanggal range data.
+             | HARUS sama dengan timezone yang dikonfigurasi di dashboard Umami.
+             | Contoh: 'Asia/Jakarta', 'UTC', 'Asia/Singapore'
+             */
+            'timezone' => env('UMAMI_TIMEZONE', 'Asia/Jakarta'),
+
+            /*
+             | TTL cache data analytics dalam detik (default: 5 menit)
+             | Data analytics di-cache di database tenant untuk menghindari spam ke API
+             */
+            'cache_ttl' => env('UMAMI_CACHE_TTL', 300),
+        ],
+    ],
 ];

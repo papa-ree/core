@@ -18,7 +18,7 @@
 
                 <div class="flex items-center justify-between px-5 py-3 -m-2 bg-gray-100 rounded-t-lg dark:bg-gray-700">
                     <div class="">
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Signed in as</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ __("Signed in as") }}</p>
                         <p class="text-sm font-medium text-gray-800 dark:text-gray-300">{{ auth()->user()->name }}</p>
                         <p class="text-xs font-medium text-gray-500 dark:text-gray-300">{{ auth()->user()->username }}
                         </p>

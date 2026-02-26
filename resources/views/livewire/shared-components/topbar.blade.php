@@ -46,9 +46,8 @@
 
                 {{-- get from package --}}
                 <x-core::dark-mode-toggle />
-                {{-- <livewire:shared-components.volt.topbar-notification-dropdown />
-                <livewire:shared-components.volt.topbar-locale-dropdown />
-                --}}
+                {{-- <livewire:shared-components.volt.topbar-notification-dropdown /> --}}
+                <livewire:core.shared-components.locale-dropdown />
                 <livewire:core.shared-components.account-dropdown />
 
             </div>
