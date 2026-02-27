@@ -57,7 +57,6 @@ Route::group(['middleware' => ['web']], function () {
 
         try {
             $user = Socialite::driver('keycloak')->user();
-            // dd($user->accessTokenResponseBody['id_token']); // Debugging: tampilkan informasi user yang didapat dari Keycloak
 
             // Buat login ke aplikasi Laravel, bisa pakai email / ID dari Keycloak
             $authUser = User::firstOrCreate([
