@@ -126,11 +126,11 @@ class CoreServiceProvider extends ServiceProvider
             __DIR__ . '/../config/core.php' => config_path('core.php'),
         ], 'core-config');
 
-        $this->publishes($this->getMigrations(), 'bale-core:migrations');
+        $this->publishes($this->getMigrations(), 'core:migrations');
 
         $this->publishes([
             __DIR__ . '/../resources/js/' => resource_path('js/'),
-        ], 'bale-core:assets');
+        ], 'core:assets');
     }
 
     /**
