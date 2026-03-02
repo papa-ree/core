@@ -76,7 +76,10 @@ Route::group(['middleware' => ['web']], function () {
 
             Auth::login($authUser, true);
 
-            session(['keycloak_id_token' => $user->accessTokenResponseBody['id_token']]);
+            session([
+                'keycloak_id_token' => $user->accessTokenResponseBody['id_token'],
+                'keycloak_access_token' => $user->token,
+            ]);
             return redirect('/dashboard-selector');
         } catch (\Exception $e) {
             // Silent login gagal (karena user belum login di Keycloak)
@@ -85,15 +88,29 @@ Route::group(['middleware' => ['web']], function () {
     });
     // End Login Route =======================================================================================
 
-    Route::group(['middleware' => ['recaptcha']], function () {
+    // Halaman login (GET) — tidak perlu recaptcha
+    Route::get('/entrance.gate', function () {
+        if (auth()->check()) {
+            return redirect('/');
+        }
+        return view('core::auth.login');
+    })->name('login');
 
-        $limiter = config('fortify.limiters.login');
+    // Halaman lockout — ditampilkan saat user ter-blokir
+    // Hanya bisa diakses jika ada data lockout di session (di-set oleh middleware CheckLoginRateLimit)
+    Route::get('/entrance.gate/blocked', function () {
+        if (!session()->has('lockout_seconds')) {
+            return redirect()->route('login');
+        }
+        return view('core::auth.lockout');
+    })->name('login.lockout');
 
-        Route::post('/entrance.gate', [AuthenticatedSessionController::class, 'store'])
-            ->middleware(array_filter([
-                'guest:' . config('fortify.guard'),
-                $limiter ? 'throttle:' . $limiter : null,
-                'recaptcha',
-            ]))->name('login.store');
-    });
+    // POST /entrance.gate — form submit dengan recaptcha & rate limit
+    Route::post('/entrance.gate', [AuthenticatedSessionController::class, 'store'])
+        ->middleware(array_filter([
+            'guest:' . config('fortify.guard'),
+            config('fortify.limiters.login') ? 'throttle:' . config('fortify.limiters.login') : null,
+            'check_login_rate_limit',
+            'recaptcha',
+        ]))->name('login.store');
 });

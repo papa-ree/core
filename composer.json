@@ -26,7 +26,8 @@
         "mcamara/laravel-localization": "*",
         "rtconner/laravel-tagging": "*",
         "socialiteproviders/keycloak": "*",
-        "spatie/laravel-permission": "*"
+        "spatie/laravel-permission": "*",
+        "yadahan/laravel-authentication-log": "*"
     },
     "require-dev": {
         "laravel/pint": "^1.14",

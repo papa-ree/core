@@ -2,6 +2,9 @@
 
 namespace Bale\Core;
 
+use Bale\Core\Middleware\CheckKeycloakSession;
+use Bale\Core\Middleware\CheckLoginRateLimit;
+use Bale\Core\Middleware\SetLocale;
 use Bale\Core\Middleware\VerifyCaptcha;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
@@ -61,9 +64,12 @@ class CoreServiceProvider extends ServiceProvider
         app('router')->aliasMiddleware('role', RoleMiddleware::class);
         app('router')->aliasMiddleware('permission', PermissionMiddleware::class);
         app('router')->aliasMiddleware('role_or_permission', RoleOrPermissionMiddleware::class);
+        app('router')->aliasMiddleware('check_keycloak_session', CheckKeycloakSession::class);
+        app('router')->aliasMiddleware('check_login_rate_limit', CheckLoginRateLimit::class);
 
         // Register custom localization middleware to the web group
-        app('router')->pushMiddlewareToGroup('web', \Bale\Core\Middleware\SetLocale::class);
+        app('router')->pushMiddlewareToGroup('web', SetLocale::class);
+        app('router')->pushMiddlewareToGroup('web', CheckKeycloakSession::class);
         // app('router')->aliasMiddleware('abilities', CheckAbilities::class);
         // app('router')->aliasMiddleware('ability', CheckForAnyAbility::class);
         // 'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
@@ -159,7 +165,10 @@ class CoreServiceProvider extends ServiceProvider
     protected function getMigrationFileName(string $filename): string
     {
         $timestamp = date('Y_m_d_His');
-        $migrationName = str_replace('.stub', '.php', $filename);
+
+        // Strip .php.stub → .php, or .stub → .php
+        $migrationName = preg_replace('/\.php\.stub$/', '.php', $filename);
+        $migrationName = preg_replace('/\.stub$/', '.php', $migrationName);
 
         return database_path('migrations/' . $timestamp . '_' . $migrationName);
     }

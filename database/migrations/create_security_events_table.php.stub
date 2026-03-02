@@ -1,0 +1,27 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('security_events', function (Blueprint $table) {
+            $table->id();
+            $table->string('event_type')->index();
+            $table->enum('severity', ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'])->default('MEDIUM')->index();
+            $table->string('ip_address', 45)->nullable()->index();
+            $table->string('username')->nullable()->index();
+            $table->string('tenant_id')->nullable()->index();
+            $table->json('payload')->nullable();
+            $table->timestamp('created_at')->useCurrent();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('security_events');
+    }
+};
