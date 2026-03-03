@@ -15,7 +15,7 @@ Route::middleware([
 });
 
 // User Management - restricted to users with 'user management' permission
-Route::middleware(['auth', 'web', 'permission:user management'])->group(function () {
+Route::middleware(['auth', 'web', 'permission:user-management.read'])->group(function () {
     Route::get('/user-management', UserManagementIndex::class)->name('user-management');
     Route::get('/user-management/create', Create::class)->name('user-management.create');
     Route::get('/user-management/{id}/edit', Edit::class)->name('user-management.edit');
