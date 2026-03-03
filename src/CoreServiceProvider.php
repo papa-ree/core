@@ -2,6 +2,7 @@
 
 namespace Bale\Core;
 
+use Bale\Core\Commands\InstallCommand;
 use Bale\Core\Middleware\CheckKeycloakSession;
 use Bale\Core\Middleware\CheckLoginRateLimit;
 use Bale\Core\Middleware\SetLocale;
@@ -38,7 +39,7 @@ class CoreServiceProvider extends ServiceProvider
     protected function registerCommands(): void
     {
         $commands = [
-            // 'command.core:install' => InstallBaleEmperanCommand::class,
+            'command.core:install' => InstallCommand::class,
         ];
 
         foreach ($commands as $key => $class) {
