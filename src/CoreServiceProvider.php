@@ -3,6 +3,7 @@
 namespace Bale\Core;
 
 use Bale\Core\Commands\InstallCommand;
+use Bale\Core\Commands\PublishErrorCommand;
 use Bale\Core\Commands\PublishMigrationCommand;
 use Bale\Core\Middleware\CheckKeycloakSession;
 use Bale\Core\Middleware\CheckLoginRateLimit;
@@ -42,6 +43,7 @@ class CoreServiceProvider extends ServiceProvider
         $commands = [
             'command.core:install' => InstallCommand::class,
             'command.core:publish-migration' => PublishMigrationCommand::class,
+            'command.core:publish-error' => PublishErrorCommand::class,
         ];
 
         foreach ($commands as $key => $class) {

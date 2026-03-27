@@ -28,6 +28,20 @@ This command allows you to:
 - **Auto (Only missing)**: Publish only migrations that don't exist yet in your application.
 - **Specific Migration**: Select specific migrations from a list.
 
+### Error Views Publisher
+
+You can publish the custom error views to your application:
+
+```bash
+php artisan core:publish-error
+```
+
+To overwrite existing files, use the `--force` flag:
+
+```bash
+php artisan core:publish-error --force
+```
+
 ## Analytics (Umami)
 
 Bale Core provides a service and migration for integrating Umami Analytics (self-hosted).
