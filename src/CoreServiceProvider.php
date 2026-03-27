@@ -139,6 +139,11 @@ class CoreServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__ . '/../resources/views/errors/' => resource_path('views/errors/'),
         ], 'core:error-views');
+
+        // Publish lang files
+        $this->publishes([
+            __DIR__ . '/../resources/lang/' => base_path('lang/'),
+        ], 'core:lang');
     }
 
     /**
