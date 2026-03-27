@@ -33,10 +33,18 @@ class UmamiService
 
     public function __construct()
     {
-        $this->baseUrl = rtrim(config('core.analytics.umami.url', ''), '/');
-        $this->apiKey = config('core.analytics.umami.api_key', '');
-        $this->cacheTtl = (int) config('core.analytics.umami.cache_ttl', 300);
-        $this->timezone = config('core.analytics.umami.timezone', 'Asia/Jakarta');
+        $this->baseUrl = rtrim(config('core.analytics.umami.url') ?: env('UMAMI_URL', ''), '/');
+        $this->apiKey = config('core.analytics.umami.api_key') ?: env('UMAMI_API_KEY', '');
+        $this->cacheTtl = (int) (config('core.analytics.umami.cache_ttl') ?: env('UMAMI_CACHE_TTL', 300));
+        $this->timezone = config('core.analytics.umami.timezone') ?: env('UMAMI_TIMEZONE', 'Asia/Jakarta');
+
+        // Log peringatan segera jika konfigurasi utama tidak terbaca sama sekali
+        if (empty($this->baseUrl) || empty($this->apiKey)) {
+            Log::error('[UmamiService] Gagal membaca konfigurasi dari config(core) maupun env.', [
+                'url_source' => config('core.analytics.umami.url') ? 'config' : (env('UMAMI_URL') ? 'env' : 'missing'),
+                'key_source' => config('core.analytics.umami.api_key') ? 'config' : (env('UMAMI_API_KEY') ? 'env' : 'missing'),
+            ]);
+        }
     }
 
     /**
@@ -71,10 +79,7 @@ class UmamiService
         }
 
         if (empty($this->baseUrl) || empty($this->apiKey)) {
-            Log::warning('[UmamiService] Konfigurasi Umami tidak lengkap (UMAMI_URL / UMAMI_API_KEY).', [
-                'baseUrl' => $this->baseUrl,
-                'apiKey' => $this->apiKey ? 'SET' : 'MISSING',
-            ]);
+            Log::warning('[UmamiService] Konfigurasi Umami tidak lengkap (UMAMI_URL / UMAMI_API_KEY).');
             return null;
         }
 
@@ -124,10 +129,7 @@ class UmamiService
         }
 
         if (empty($this->baseUrl) || empty($this->apiKey)) {
-            Log::warning('[UmamiService] Konfigurasi Umami tidak lengkap (UMAMI_URL / UMAMI_API_KEY).', [
-                'baseUrl' => $this->baseUrl,
-                'apiKey' => $this->apiKey ? 'SET' : 'MISSING',
-            ]);
+            Log::warning('[UmamiService] Konfigurasi Umami tidak lengkap (UMAMI_URL / UMAMI_API_KEY).');
             return null;
         }
 
