@@ -1,11 +1,7 @@
 @props(['label' => 'Button'])
 
 @php
-    $classes = 'capitalize inline-flex items-center py-3 px-4 text-sm font-medium text-gray-700 transition-all bg-gray-200
-                     border border-gray-300 hover:drop-shadow-md rounded-lg hs-accordion-toggle hover:bg-gray-200/40 hover:text-gray-900 focus:outline-hidden
-                     focus:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none dark:bg-gray-700 dark:text-gray-300
-                     dark:hover:bg-gray-900/20 dark:hover:text-white dark:focus:bg-gray-800/20 dark:focus:text-white
-            ';
+    $classes = 'inline-flex items-center justify-center gap-x-2 px-6 py-3 text-sm font-semibold transition-all duration-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none capitalize text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 shadow-sm focus:ring-gray-200 dark:focus:ring-slate-700';
 @endphp
 
 <div x-data="{ disabledButton: false }">

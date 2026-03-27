@@ -15,6 +15,19 @@ php artisan vendor:publish --tag="bale-core:migrations"
 php artisan migrate
 ```
 
+### Migration Publisher (Recommended)
+
+Alternatively, you can use the interactive migration publisher which provides more control:
+
+```bash
+php artisan core:publish-migration
+```
+
+This command allows you to:
+- **All**: Publish all migrations.
+- **Auto (Only missing)**: Publish only migrations that don't exist yet in your application.
+- **Specific Migration**: Select specific migrations from a list.
+
 ## Analytics (Umami)
 
 Bale Core provides a service and migration for integrating Umami Analytics (self-hosted).
@@ -72,6 +85,45 @@ The `x-core::chart` component uses Chart.js to render various types of charts.
 />
 ```
 
+### Upload Zone Component
+
+The `x-core::upload-zone` is a pure Alpine.js + Livewire drag-and-drop file upload component. It does not depend on FilePond and follows the Bale design system.
+
+#### Features
+
+- **Drag-and-Drop**: Visual feedback when dragging files over the zone.
+- **Client-side Validation**: Instant checks for file type and size before uploading.
+- **Image Preview**: Displays a thumbnail for image files.
+- **File Info**: Shows filename and size for non-image or previewed files.
+- **Livewire Integration**: Built-in support for `$wire.upload()` with a progress bar.
+- **Dark Mode**: Fully styled for both light and dark themes.
+
+#### Usage
+
+```blade
+<x-core::upload-zone
+    wire:model.live="thumbnail"
+    accept="image/png,image/jpeg,image/jpg"
+    maxSize="1024"
+    :label="__('Drop your image here or click to browse')"
+    :hint="__('Only PNG/JPG, Max 1MB')"
+    class="min-h-[200px]"
+/>
+```
+
+#### Properties
+
+| Property     | Type     | Default      | Description                                              |
+| ------------ | -------- | ------------ | -------------------------------------------------------- |
+| `wire:model` | `string` | **required** | The Livewire property name to bind the upload.           |
+| `accept`     | `string` | `image/*`    | Comma-separated list of allowed MIME types.              |
+| `maxSize`    | `int`    | `512`        | Maximum file size allowed in Kilobytes (KB).             |
+| `label`      | `string` | `null`       | Main helper text displayed inside the drop zone.         |
+| `hint`       | `string` | `null`       | Sub-label text (e.g., "Max 512KB", "Formats: PNG, JPG"). |
+| `class`      | `string` | `''`         | Custom CSS classes for the component container.          |
+
+```
+
 ## Credits
 
 - [Papa Ree](https://github.com/papa-ree)
@@ -80,3 +132,4 @@ The `x-core::chart` component uses Chart.js to render various types of charts.
 ## License
 
 The MIT License (MIT).
+```

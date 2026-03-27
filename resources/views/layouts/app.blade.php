@@ -41,7 +41,7 @@
     <livewire:core.shared-components.topbar />
 
     @can('dashboard')
-        <livewire:rakaca.shared-components.rakaca-landlord-sidebar />
+        <livewire:core.shared-components.landlord-sidebar />
     @endcan
 
     <div class="w-full px-4 pt-5 pb-10 sm:px-6 md:px-8 lg:pl-72">

@@ -29,12 +29,23 @@ class InstallCommand extends Command
      */
     public function handle(): int
     {
-        $this->info('Starting Bale Core installation...');
+        $this->info('Bale Core Installer');
 
-        $this->seedRolesAndPermissions();
-        $this->createRootUser();
+        $choice = $this->choice(
+            'Select installation mode:',
+            ['all', 'core only', 'role permission only'],
+            0
+        );
 
-        $this->info('Bale Core installation completed successfully!');
+        if ($choice === 'all' || $choice === 'role permission only') {
+            $this->seedRolesAndPermissions();
+        }
+
+        if ($choice === 'all' || $choice === 'core only') {
+            $this->createRootUser();
+        }
+
+        $this->info("Bale Core installation [{$choice}] completed successfully!");
 
         return self::SUCCESS;
     }
@@ -45,10 +56,21 @@ class InstallCommand extends Command
 
         // 1. Create Permissions
         $permissions = [
+            'role.read',
+            'role.create',
+            'role.update',
+            'role.delete',
+            'permission.read',
+            'permission.create',
+            'permission.update',
+            'permission.delete',
             'user-management.read',
             'user-management.create',
             'user-management.update',
             'user-management.delete',
+            'authentication-log.read',
+            'authentication-log.update',
+            'authentication-log.delete',
             'dashboard',
         ];
 
@@ -59,7 +81,6 @@ class InstallCommand extends Command
         // 2. Create Roles
         $roleRoot = Role::firstOrCreate(['name' => 'root']);
         $roleAdmin = Role::firstOrCreate(['name' => 'admin']);
-        $roleGuest = Role::firstOrCreate(['name' => 'guest']);
 
         // 3. Assign Permissions to Roles
         // Role root: all permissions
@@ -68,15 +89,20 @@ class InstallCommand extends Command
         // Role admin: dashboard
         $roleAdmin->syncPermissions(['dashboard']);
 
-        // Role guest: no permissions (already empty by default or sync empty array)
-        $roleGuest->syncPermissions([]);
-
         $this->info('Roles and permissions seeded.');
     }
 
     protected function createRootUser(): void
     {
         $this->info('Creating Root User...');
+
+        // Check if root user already exists
+        if (User::where('username', 'root')->exists()) {
+            $this->info('Root user already exists. Skipping creation questions.');
+            $user = User::where('username', 'root')->first();
+            $user->assignRole('root');
+            return;
+        }
 
         $name = $this->ask('Full Name', 'Root User');
         $username = $this->ask('Username', 'root');

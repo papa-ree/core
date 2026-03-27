@@ -15,9 +15,9 @@ class DashboardSelector extends Controller
         // check rakaca package
         if (
             class_exists(\Paparee\Rakaca\Livewire\Pages\Guest\Dashboard\Index::class)
-            && $user?->hasRole('guest')
+            && $user?->can('guest.dashboard')
         ) {
-            return redirect()->route('rakaca.guest.dashboard');
+            return redirect()->route('rakaca.guest-dashboard.index');
         }
 
         return redirect()->route('rakaca.landlord-dashboard.index');

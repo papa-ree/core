@@ -3,6 +3,7 @@
 namespace Bale\Core;
 
 use Bale\Core\Commands\InstallCommand;
+use Bale\Core\Commands\PublishMigrationCommand;
 use Bale\Core\Middleware\CheckKeycloakSession;
 use Bale\Core\Middleware\CheckLoginRateLimit;
 use Bale\Core\Middleware\SetLocale;
@@ -40,6 +41,7 @@ class CoreServiceProvider extends ServiceProvider
     {
         $commands = [
             'command.core:install' => InstallCommand::class,
+            'command.core:publish-migration' => PublishMigrationCommand::class,
         ];
 
         foreach ($commands as $key => $class) {
@@ -132,6 +134,11 @@ class CoreServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__ . '/../resources/js/' => resource_path('js/'),
         ], 'core:assets');
+
+        // Publish error views
+        $this->publishes([
+            __DIR__ . '/../resources/views/errors/' => resource_path('views/errors/'),
+        ], 'core:error-views');
     }
 
     /**

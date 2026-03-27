@@ -80,7 +80,7 @@ Route::group(['middleware' => ['web']], function () {
                 'keycloak_id_token' => $user->accessTokenResponseBody['id_token'],
                 'keycloak_access_token' => $user->token,
             ]);
-            return redirect('/dashboard-selector');
+            return redirect()->route('dashboard');
         } catch (\Exception $e) {
             // Silent login gagal (karena user belum login di Keycloak)
             return redirect()->route('force.login'); // misalnya redirect ke login normal

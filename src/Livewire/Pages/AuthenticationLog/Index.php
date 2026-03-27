@@ -1,14 +1,14 @@
 <?php
 
-namespace Bale\Core\Livewire\Pages\UserManagement;
+namespace Bale\Core\Livewire\Pages\AuthenticationLog;
 
-use App\Models\User;
+use Bale\Core\Models\AuthenticationLog;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\{Layout, Title, Computed, On};
 
 #[Layout('core::layouts.app')]
-#[Title('User Management')]
+#[Title('Authentication Log')]
 class Index extends Component
 {
     use WithPagination;
@@ -17,14 +17,14 @@ class Index extends Component
     public $query = '';
 
     // Sorting
-    public $sortField = 'name';
-    public $sortDirection = 'asc';
+    public $sortField = 'login_at';
+    public $sortDirection = 'desc';
 
     // Permission check on mount
     public function mount()
     {
         // Check permission
-        if (!auth()->user()->can('user-management.read')) {
+        if (!auth()->user()->can('authentication-log.read')) {
             abort(403, 'Unauthorized action.');
         }
     }
@@ -32,22 +32,27 @@ class Index extends Component
     public function render()
     {
         // Check permission
-        if (!auth()->user()->can('user-management.read')) {
+        if (!auth()->user()->can('authentication-log.read')) {
             abort(403, 'Unauthorized action.');
         }
 
-        return view('core::livewire.pages.user-management.index');
+        return view('core::livewire.pages.authentication-log.index');
     }
 
     #[Computed]
-    public function users()
+    public function logs()
     {
-        return User::query()
+        return AuthenticationLog::query()
+            ->with('authenticatable')
             ->when($this->query, function ($query) {
                 $query->where(function ($q) {
-                    $q->where('name', 'like', '%' . $this->query . '%')
-                        ->orWhere('email', 'like', '%' . $this->query . '%')
-                        ->orWhere('username', 'like', '%' . $this->query . '%');
+                    $q->where('ip_address', 'like', '%' . $this->query . '%')
+                        ->orWhere('user_agent', 'like', '%' . $this->query . '%')
+                        ->orWhereHasMorph('authenticatable', ['App\Models\User'], function ($q) {
+                            $q->where('name', 'like', '%' . $this->query . '%')
+                                ->orWhere('email', 'like', '%' . $this->query . '%')
+                                ->orWhere('username', 'like', '%' . $this->query . '%');
+                        });
                 });
             })
             ->orderBy($this->sortField, $this->sortDirection)
@@ -65,24 +70,17 @@ class Index extends Component
     }
 
     #[On('deleteItem')]
-    public function deleteUser($id)
+    public function deleteLog($id)
     {
         // Check permission
-        if (!auth()->user()->can('user-management.delete')) {
+        if (!auth()->user()->can('authentication-log.delete')) {
             abort(403, 'Unauthorized action.');
         }
 
-        $user = User::findOrFail($id);
+        $log = AuthenticationLog::findOrFail($id);
+        $log->delete();
 
-        // Prevent deleting own account
-        if ($user->id === auth()->id()) {
-            session()->flash('error', 'You cannot delete your own account.');
-            return;
-        }
-
-        $user->delete();
-
-        session()->flash('message', 'User deleted successfully.');
+        session()->flash('message', 'Log deleted successfully.');
 
         // Dispatch paginated event for table component
         $this->dispatch('paginated');

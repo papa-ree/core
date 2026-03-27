@@ -1,220 +1,362 @@
-<div x-data="{ activeTab: @entangle('activeTab') }">
-    <x-core::breadcrumb :items="[
-        ['label' => 'User Management', 'route' => 'user-management'],
-    ]" active="Edit User" />
-
-    <x-core::page-header title="Edit User: {{ $this->user->name }}"
-        subtitle="Manage user information, roles, and services" />
-
-    {{-- Flash Messages --}}
-    @if (session()->has('message'))
-        <div class="p-4 mb-6 text-sm text-green-800 bg-green-100 border border-green-200 rounded-lg dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
-            role="alert">
-            <div class="flex items-center gap-x-3">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <span>{{ session('message') }}</span>
-            </div>
-        </div>
-    @endif
-
-    @if (session()->has('error'))
-        <div class="p-4 mb-6 text-sm text-red-800 bg-red-100 border border-red-200 rounded-lg dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
-            role="alert">
-            <div class="flex items-center gap-x-3">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <span>{{ session('error') }}</span>
-            </div>
-        </div>
-    @endif
-
-    <div class="max-w-5xl">
-        {{-- Tabs Navigation --}}
-        <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
-            <nav class="flex gap-x-2" aria-label="Tabs">
-                <button type="button" @click="activeTab = 'basic-info'"
-                    :class="activeTab === 'basic-info' ?
-                        'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400' :
-                        'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
-                    class="py-4 px-1 inline-flex items-center gap-x-2 border-b-2 text-sm font-medium whitespace-nowrap focus:outline-none transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                    </svg>
-                    Basic Info
-                </button>
-                <button type="button" @click="activeTab = 'roles'"
-                    :class="activeTab === 'roles' ?
-                        'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400' :
-                        'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
-                    class="py-4 px-1 inline-flex items-center gap-x-2 border-b-2 text-sm font-medium whitespace-nowrap focus:outline-none transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
-                        </path>
-                    </svg>
-                    Roles
-                </button>
-                <button type="button" @click="activeTab = 'services'"
-                    :class="activeTab === 'services' ?
-                        'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400' :
-                        'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'"
-                    class="py-4 px-1 inline-flex items-center gap-x-2 border-b-2 text-sm font-medium whitespace-nowrap focus:outline-none transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
-                        </path>
-                    </svg>
-                    Services
-                </button>
-            </nav>
-        </div>
-
-        {{-- Basic Info Tab --}}
-        <div x-show="activeTab === 'basic-info'" x-transition>
-            <div class="p-6 bg-white border border-gray-200 shadow-sm dark:bg-gray-800 rounded-xl dark:border-gray-700">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Basic Information</h3>
-                <form wire:submit="updateBasicInfo" class="space-y-6">
-                    {{-- Name --}}
-                    <div>
-                        <x-core::label for="name" value="Name *" />
-                        <x-core::input id="name" type="text" wire:model="name" required />
-                        @error('name')
-                            <x-core::input-error :message="$message" />
-                        @enderror
+<div>
+    {{--
+    |--------------------------------------------------------------------------
+    | Edit User Page
+    |--------------------------------------------------------------------------
+    | Layout: Two-column split
+    | Left → Profile card (avatar, name, meta info, account stats, permissions)
+    | Right → Tabbed edit forms (Profile · Security · Role)
+    |
+    | Removed: Services tab (replaced with user info on the sidebar)
+    | Role: single selection via radio
+    --}}
+    
+    <div x-data="{ activeTab: @entangle('activeTab') }">
+    
+        <x-core::breadcrumb :items="[['label' => __('Users'), 'route' => 'user-management']]" :active="__('Edit User')" />
+    
+        {{-- Toast notifications are handled globally via dispatch('toast') --}}
+    
+        {{-- =====================================================================
+        Main split layout: sidebar (left) + editor (right)
+        ===================================================================== --}}
+        <div class="mt-6 grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 items-start">
+    
+            {{-- ========================
+            LEFT: Profile Sidebar
+            ======================== --}}
+            <div class="space-y-4 lg:sticky lg:top-24">
+    
+                {{-- Profile Card --}}
+                <div
+                    class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+    
+                    {{-- Avatar section --}}
+                    <div class="relative h-20 bg-linear-to-br from-slate-700 to-slate-900">
+                        <div class="absolute -bottom-8 left-6">
+                            <div
+                                class="w-16 h-16 rounded-2xl bg-linear-to-br from-indigo-500 to-purple-600 ring-4 ring-white dark:ring-gray-900 flex items-center justify-center shadow-lg">
+                                <span class="text-xl font-bold text-white uppercase leading-none">
+                                    {{ substr($this->user->name, 0, 1) }}
+                                </span>
+                            </div>
+                        </div>
+                        {{-- Role badge top-right --}}
+                        @if($this->user->roles->first())
+                            <div class="absolute top-3 right-3">
+                                <span
+                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-white/20 text-white backdrop-blur-sm border border-white/20">
+                                    <x-lucide-shield class="w-3 h-3" />
+                                    {{ $this->user->roles->first()->name }}
+                                </span>
+                            </div>
+                        @endif
                     </div>
-
-                    {{-- Username --}}
-                    <div>
-                        <x-core::label for="username" value="Username *" />
-                        <x-core::input id="username" type="text" wire:model="username" required />
-                        @error('username')
-                            <x-core::input-error :message="$message" />
-                        @enderror
+    
+                    <div class="pt-10 px-6 pb-6">
+                        <h3 class="text-base font-bold text-gray-900 dark:text-white">{{ $this->user->name }}</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{{ $this->user->username }}</p>
+    
+                        {{-- Email --}}
+                        <div class="flex items-center gap-2 mt-3">
+                            <x-lucide-mail class="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <span class="text-xs text-gray-600 dark:text-gray-300 truncate">{{ $this->user->email }}</span>
+                        </div>
+    
+                        <div class="border-t border-gray-100 dark:border-gray-800 mt-4 pt-4 space-y-2.5">
+                            {{-- Created at --}}
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
+                                    <x-lucide-calendar class="w-3.5 h-3.5" />
+                                    {{ __('Member since') }}
+                                </span>
+                                <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                    {{ $this->user->created_at->format('d M Y') }}
+                                </span>
+                            </div>
+    
+                            {{-- Last updated --}}
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
+                                    <x-lucide-clock class="w-3.5 h-3.5" />
+                                    {{ __('Last updated') }}
+                                </span>
+                                <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                    {{ $this->user->updated_at->diffForHumans() }}
+                                </span>
+                            </div>
+                        </div>
                     </div>
-
-                    {{-- Email --}}
-                    <div>
-                        <x-core::label for="email" value="Email *" />
-                        <x-core::input id="email" type="email" wire:model="email" required />
-                        @error('email')
-                            <x-core::input-error :message="$message" />
-                        @enderror
-                    </div>
-
-                    {{-- New Password --}}
-                    <div>
-                        <x-core::label for="password" value="New Password" />
-                        <x-core::input id="password" type="password" wire:model="password" />
-                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Leave blank to keep current password
-                        </p>
-                        @error('password')
-                            <x-core::input-error :message="$message" />
-                        @enderror
-                    </div>
-
-                    {{-- Confirm Password --}}
-                    <div>
-                        <x-core::label for="password_confirmation" value="Confirm New Password" />
-                        <x-core::input id="password_confirmation" type="password" wire:model="password_confirmation" />
-                    </div>
-
-                    {{-- Actions --}}
+                </div>
+    
+                {{-- Permissions card --}}
+                @php $allPerms = $this->user->getAllPermissions(); @endphp
+                @if($allPerms->isNotEmpty())
                     <div
-                        class="flex items-center justify-end gap-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <x-core::secondary-button wire:click="cancel" type="button">
-                            Cancel
-                        </x-core::secondary-button>
-                        <x-core::button type="submit">
-                            Update Basic Info
-                        </x-core::button>
+                        class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                                {{ __('Permissions') }}
+                            </h4>
+                            <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                                {{ $allPerms->count() }} {{ __('total') }}
+                            </span>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5">
+                            @foreach($allPerms->take(12) as $perm)
+                                <span class="inline-block px-2 py-0.5 text-[10px] font-medium rounded-md
+                                                     bg-gray-100 dark:bg-gray-800
+                                                     text-gray-600 dark:text-gray-400">
+                                    {{ $perm->name }}
+                                </span>
+                            @endforeach
+                            @if($allPerms->count() > 12)
+                                <span class="inline-block px-2 py-0.5 text-[10px] font-medium rounded-md
+                                                     bg-indigo-100 dark:bg-indigo-900/30
+                                                     text-indigo-600 dark:text-indigo-400">
+                                    +{{ $allPerms->count() - 12 }} {{ __('more') }}
+                                </span>
+                            @endif
+                        </div>
                     </div>
-                </form>
-            </div>
-        </div>
+                @endif
+            </div> {{-- End Sidebar Column --}}
 
-        {{-- Roles Tab --}}
-        <div x-show="activeTab === 'roles'" x-transition>
-            <div class="p-6 bg-white border border-gray-200 shadow-sm dark:bg-gray-800 rounded-xl dark:border-gray-700">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Role Assignment</h3>
-                <form wire:submit="updateRoles" class="space-y-6">
-                    <div class="space-y-3">
-                        @forelse($this->availableRoles as $role)
-                            <label
-                                class="flex items-center gap-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors">
-                                <input type="checkbox" wire:model="selectedRoles" value="{{ $role->name }}"
-                                    class="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-700 dark:focus:ring-emerald-600">
-                                <div class="flex-1">
-                                    <span class="text-sm font-medium text-gray-900 dark:text-white">{{ $role->name }}</span>
+    
+            {{-- ========================
+            RIGHT: Tabbed Editor
+            ======================== --}}
+            <div
+                class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+    
+                {{-- Tab bar --}}
+                <div class="flex items-center gap-1 px-2 pt-2 border-b border-gray-100 dark:border-gray-800">
+                    <button
+                        type="button"
+                        @click="activeTab = 'profile'"
+                        :class="activeTab === 'profile'
+                            ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm border border-gray-200 dark:border-gray-700'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50'"
+                        class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl mb-2 transition-all duration-200 focus:outline-none"
+                    >
+                        <x-lucide-user class="w-4 h-4" />
+                        {{ __('Profile') }}
+                    </button>
+                    <button
+                        type="button"
+                        @click="activeTab = 'security'"
+                        :class="activeTab === 'security'
+                            ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm border border-gray-200 dark:border-gray-700'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50'"
+                        class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl mb-2 transition-all duration-200 focus:outline-none"
+                    >
+                        <x-lucide-lock-keyhole class="w-4 h-4" />
+                        {{ __('Security') }}
+                    </button>
+                    <button
+                        type="button"
+                        @click="activeTab = 'role'"
+                        :class="activeTab === 'role'
+                            ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm border border-gray-200 dark:border-gray-700'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50'"
+                        class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl mb-2 transition-all duration-200 focus:outline-none"
+                    >
+                        <x-lucide-shield-check class="w-4 h-4" />
+                        {{ __('Role') }}
+                    </button>
+                </div>
+    
+                {{-- ===========================
+                TAB: Profile
+                =========================== --}}
+                <div x-show="activeTab === 'profile'" x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+                    <form wire:submit="updateBasicInfo" class="p-6 space-y-6">
+    
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-900 dark:text-white">{{ __('Profile Information') }}</h3>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                {{ __('Update name, username, and email address') }}</p>
+                        </div>
+    
+                        {{-- Full Name --}}
+                        <div class="space-y-1.5">
+                            <x-core::label for="name" :value="__('Full Name')" />
+                            <x-core::input id="name" type="text" class="block w-full" wire:model="name"
+                                placeholder="John Doe" required />
+                            <x-core::input-error for="name" />
+                        </div>
+    
+                        {{-- Username + Email in 2-col --}}
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div class="space-y-1.5">
+                                <x-core::label for="username" :value="__('Username')" />
+                                <x-core::input id="username" type="text" class="block w-full" wire:model="username"
+                                    placeholder="johndoe" required />
+                                <x-core::input-error for="username" />
+                            </div>
+                            <div class="space-y-1.5">
+                                <x-core::label for="email" :value="__('Email Address')" />
+                                <x-core::input id="email" type="email" class="block w-full" wire:model="email"
+                                    placeholder="john@example.com" required />
+                                <x-core::input-error for="email" />
+                            </div>
+                        </div>
+    
+                        {{-- Footer actions --}}
+                        <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+                            <x-core::secondary-button wire:click="cancel" type="button" label="{{ __('Discard') }}" />
+                            <x-core::button type="submit" label="{{ __('Save Profile') }}" spinner="updateBasicInfo">
+                                <x-slot name="icon"><x-lucide-save class="w-4 h-4" /></x-slot>
+                            </x-core::button>
+                        </div>
+                    </form>
+                </div>
+    
+                {{-- ===========================
+                TAB: Security
+                =========================== --}}
+                <div x-show="activeTab === 'security'" x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+                    <form wire:submit="updateBasicInfo" class="p-6 space-y-6">
+    
+                        <div
+                            class="flex items-start gap-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800">
+                            <x-lucide-triangle-alert class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                            <div>
+                                <p class="text-sm font-semibold text-amber-800 dark:text-amber-400">
+                                    {{ __('Password Change') }}</p>
+                                <p class="text-xs text-amber-700 dark:text-amber-500 mt-0.5">
+                                    {{ __('Leave the fields blank if you do not want to change the password. The user will need to re-login after a password change.') }}
+                                </p>
+                            </div>
+                        </div>
+    
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            {{-- New Password --}}
+                            <div class="space-y-1.5">
+                                <x-core::label for="password" :value="__('New Password')" />
+                                <x-core::input id="password" type="password" class="block w-full" wire:model="password"
+                                    useGenPassword />
+                                <p class="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                                    {{ __('Min. 8 characters') }}</p>
+                                <x-core::input-error for="password" />
+                            </div>
+    
+                            {{-- Confirm Password --}}
+                            <div class="space-y-1.5">
+                                <x-core::label for="password_confirmation" :value="__('Confirm Password')" />
+                                <x-core::input id="password_confirmation" type="password" class="block w-full"
+                                    wire:model="password_confirmation" />
+                                <x-core::input-error for="password_confirmation" />
+                            </div>
+                        </div>
+    
+                        <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+                            <x-core::secondary-button wire:click="cancel" type="button" label="{{ __('Discard') }}" />
+                            <x-core::button type="submit" label="{{ __('Update Password') }}" spinner="updateBasicInfo">
+                                <x-slot name="icon"><x-lucide-lock-keyhole class="w-4 h-4" /></x-slot>
+                            </x-core::button>
+                        </div>
+                    </form>
+                </div>
+    
+                {{-- ===========================
+                TAB: Role
+                Single role → radio buttons
+                =========================== --}}
+                <div x-show="activeTab === 'role'" x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+                    <form wire:submit="updateRoles" class="p-6 space-y-5">
+    
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-900 dark:text-white">{{ __('Role Assignment') }}</h3>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                {{ __('Each user can only hold one role. Changing the role will immediately update their access permissions.') }}
+                            </p>
+                        </div>
+    
+                        {{-- Current assignment info banner --}}
+                        @if($this->user->roles->first())
+                            <div
+                                class="flex items-center gap-3 p-3.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800">
+                                <x-lucide-info class="w-4 h-4 text-indigo-500 shrink-0" />
+                                <p class="text-xs text-indigo-700 dark:text-indigo-400">
+                                    {{ __('Currently assigned:') }}
+                                    <span class="font-bold capitalize">{{ $this->user->roles->first()->name }}</span>
+                                    — {{ __('has') }} {{ $this->user->roles->first()->permissions->count() }}
+                                    {{ __('permissions') }}
+                                </p>
+                            </div>
+                        @endif
+    
+                        {{-- Role list --}}
+                        <div class="space-y-2">
+                            @forelse($this->availableRoles as $role)
+                                <label class="flex items-center gap-4 p-4 rounded-xl cursor-pointer border transition-all duration-200
+                                                  bg-gray-50 dark:bg-gray-800/50
+                                                  border-gray-200 dark:border-gray-700
+                                                  hover:bg-white dark:hover:bg-gray-800
+                                                  hover:border-indigo-300 dark:hover:border-indigo-700
+                                                  has-checked:bg-indigo-50 dark:has-checked:bg-indigo-900/10
+                                                  has-checked:border-indigo-400 dark:has-checked:border-indigo-600
+                                                  has-checked:shadow-sm">
+                                    <input type="radio" name="selectedRole" wire:model="selectedRole" value="{{ $role->name }}"
+                                        class="peer sr-only">
+    
+                                    {{-- Custom radio dot --}}
+                                    <span class="shrink-0 flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all duration-200
+                                                     border-gray-300 dark:border-gray-600
+                                                     peer-checked:border-indigo-500 peer-checked:bg-indigo-500">
+                                        <span
+                                            class="w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100 transition-opacity"></span>
+                                    </span>
+    
+                                    {{-- Role info --}}
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-bold text-gray-900 dark:text-white capitalize">{{ $role->name }}
+                                        </p>
+                                        @if($role->permissions->count() > 0)
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                {{ $role->permissions->count() }} {{ __('permissions included') }}
+                                            </p>
+                                        @else
+                                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                                                {{ __('No permissions defined') }}</p>
+                                        @endif
+                                    </div>
+    
+                                    {{-- Permission count pill --}}
                                     @if($role->permissions->count() > 0)
-                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                            {{ $role->permissions->count() }} permissions
-                                        </p>
+                                        <span class="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full
+                                                             bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700
+                                                             text-gray-500 dark:text-gray-400 peer-checked:border-indigo-300">
+                                            {{ $role->permissions->count() }}
+                                        </span>
                                     @endif
+                                </label>
+                            @empty
+                                <div
+                                    class="flex flex-col items-center justify-center py-14 text-center rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                    <x-lucide-shield-off class="w-10 h-10 text-gray-300 dark:text-gray-700 mb-3" />
+                                    <p class="text-sm font-semibold text-gray-400 dark:text-gray-500">
+                                        {{ __('No roles available') }}</p>
+                                    <p class="text-xs text-gray-400 dark:text-gray-600 mt-1">
+                                        {{ __('Create roles in the Role Management section first') }}</p>
                                 </div>
-                            </label>
-                        @empty
-                            <p class="text-sm text-gray-500 dark:text-gray-400">No roles available</p>
-                        @endforelse
-                    </div>
-
-                    {{-- Actions --}}
-                    <div
-                        class="flex items-center justify-end gap-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <x-core::secondary-button wire:click="cancel" type="button">
-                            Cancel
-                        </x-core::secondary-button>
-                        <x-core::button type="submit">
-                            Update Roles
-                        </x-core::button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        {{-- Services Tab --}}
-        <div x-show="activeTab === 'services'" x-transition>
-            <div class="p-6 bg-white border border-gray-200 shadow-sm dark:bg-gray-800 rounded-xl dark:border-gray-700">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Service Assignment</h3>
-                <form wire:submit="updateServices" class="space-y-6">
-                    <div class="space-y-3">
-                        @forelse($this->availableServices as $service)
-                            <label
-                                class="flex items-center gap-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors">
-                                <input type="checkbox" wire:model="selectedServices" value="{{ $service->id }}"
-                                    class="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-700 dark:focus:ring-emerald-600">
-                                <div class="flex-1">
-                                    <span
-                                        class="text-sm font-medium text-gray-900 dark:text-white">{{ $service->name }}</span>
-                                    @if($service->slug)
-                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                            Slug: {{ $service->slug }}
-                                        </p>
-                                    @endif
-                                </div>
-                            </label>
-                        @empty
-                            <p class="text-sm text-gray-500 dark:text-gray-400">No services available</p>
-                        @endforelse
-                    </div>
-
-                    {{-- Actions --}}
-                    <div
-                        class="flex items-center justify-end gap-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <x-core::secondary-button wire:click="cancel" type="button">
-                            Cancel
-                        </x-core::secondary-button>
-                        <x-core::button type="submit">
-                            Update Services
-                        </x-core::button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                            @endforelse
+                        </div>
+    
+                        <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+                            <x-core::secondary-button wire:click="cancel" type="button" label="{{ __('Discard') }}" />
+                            <x-core::button type="submit" label="{{ __('Assign Role') }}" spinner="updateRoles">
+                                <x-slot name="icon"><x-lucide-shield-check class="w-4 h-4" /></x-slot>
+                            </x-core::button>
+                        </div>
+                    </form>
+                </div>
+    
+            </div>{{-- end editor --}}
+        </div>{{-- end grid --}}
     </div>
 </div>

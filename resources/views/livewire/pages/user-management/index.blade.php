@@ -1,15 +1,12 @@
 <div>
-    <x-core::page-header title="User Management" subtitle="Kelola pengguna sistem">
-        <x-slot name="actions">
-            @can('user management')
-                <a href="{{ route('user-management.create') }}" wire:navigate
-                    class="inline-flex items-center gap-x-2 px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
-                        </path>
-                    </svg>
-                    Add New User
-                </a>
+    <x-core::page-header gradient :title="__('User Management')" :subtitle="__('Manage system users')">
+        <x-slot name="action">
+            @can('user-management.create')
+                <x-core::button link href="{{ route('user-management.create') }}" label="Add New User">
+                    <x-slot name="icon">
+                        <x-lucide-plus class="w-5 h-5" />
+                    </x-slot>
+                </x-core::button>
             @endcan
         </x-slot>
     </x-core::page-header>
@@ -17,14 +14,13 @@
     <x-core::table :links="$this->users" header>
         <x-slot name="thead">
             <tr>
-                <x-core::table-th label="User" sortBy="name" :sortField="$sortField"
-                    :sortDirection="$sortDirection" />
+                <x-core::table-th label="User" sortBy="name" :sortField="$sortField" :sortDirection="$sortDirection" />
                 <x-core::table-th class="hidden md:table-cell" label="Username" sortBy="username"
                     :sortField="$sortField" :sortDirection="$sortDirection" />
-                <x-core::table-th class="hidden lg:table-cell" label="Email" sortBy="email"
-                    :sortField="$sortField" :sortDirection="$sortDirection" />
+                <x-core::table-th class="hidden lg:table-cell" label="Email" sortBy="email" :sortField="$sortField"
+                    :sortDirection="$sortDirection" />
                 <x-core::table-th class="hidden sm:table-cell" label="Roles" />
-                @can('user management')
+                @can('user-management.delete')
                     <x-core::table-th label="Action" />
                 @endcan
             </tr>
@@ -39,7 +35,7 @@
                         <div class="block py-3 pe-6">
                             <div class="flex items-center gap-x-3">
                                 <div
-                                    class="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-semibold text-sm">
+                                    class="flex items-center justify-center w-10 h-10 rounded-full bg-linear-to-br from-indigo-500 to-purple-600 text-white font-semibold text-sm">
                                     {{ strtoupper(substr($user->name, 0, 1)) }}
                                 </div>
                                 <div class="grow">
@@ -50,7 +46,8 @@
                                         <dd class="text-xs text-gray-500 dark:text-gray-400">{{ $user->username }}</dd>
                                         <dt class="sr-only lg:hidden">Email</dt>
                                         <dd class="text-xs text-gray-500 dark:text-gray-400 lg:hidden">
-                                            {{ $user->email }}</dd>
+                                            {{ $user->email }}
+                                        </dd>
                                     </dl>
                                 </div>
                             </div>
@@ -82,12 +79,10 @@
                     </td>
 
                     {{-- Actions --}}
-                    @can('user management')
+                    @can('user-management.delete')
                         <td class="size-px whitespace-nowrap">
                             <div class="px-6 py-1.5">
-                                <livewire:core.shared-components.item-actions
-                                    :editUrl="route('user-management.edit', $user->id)" :deleteId="$user->id"
-                                    wire:key="item-actions-{{ $user->id }}"
+                                <livewire:core.shared-components.item-actions :editUrl="route('user-management.edit', $user->id)" :deleteId="$user->id" wire:key="item-actions-{{ $user->id }}"
                                     confirmMessage="Are you sure you want to delete this user?" />
                             </div>
                         </td>

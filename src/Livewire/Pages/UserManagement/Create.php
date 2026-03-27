@@ -21,14 +21,14 @@ class Create extends Component
     // Permission check on mount
     public function mount()
     {
-        if (!auth()->user()->can('user management')) {
+        if (!auth()->user()->can('user-management.create')) {
             abort(403, 'Unauthorized action.');
         }
     }
 
     public function render()
     {
-        if (!auth()->user()->can('user management')) {
+        if (!auth()->user()->can('user-management.create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -37,7 +37,7 @@ class Create extends Component
 
     public function createUser()
     {
-        if (!auth()->user()->can('user management')) {
+        if (!auth()->user()->can('user-management.create')) {
             abort(403, 'Unauthorized action.');
         }
 
