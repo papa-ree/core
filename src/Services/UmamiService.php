@@ -71,7 +71,10 @@ class UmamiService
         }
 
         if (empty($this->baseUrl) || empty($this->apiKey)) {
-            Log::warning('[UmamiService] Konfigurasi Umami tidak lengkap (UMAMI_URL / UMAMI_API_KEY).');
+            Log::warning('[UmamiService] Konfigurasi Umami tidak lengkap (UMAMI_URL / UMAMI_API_KEY).', [
+                'baseUrl' => $this->baseUrl,
+                'apiKey' => $this->apiKey ? 'SET' : 'MISSING',
+            ]);
             return null;
         }
 
@@ -121,7 +124,10 @@ class UmamiService
         }
 
         if (empty($this->baseUrl) || empty($this->apiKey)) {
-            Log::warning('[UmamiService] Konfigurasi Umami tidak lengkap (UMAMI_URL / UMAMI_API_KEY).');
+            Log::warning('[UmamiService] Konfigurasi Umami tidak lengkap (UMAMI_URL / UMAMI_API_KEY).', [
+                'baseUrl' => $this->baseUrl,
+                'apiKey' => $this->apiKey ? 'SET' : 'MISSING',
+            ]);
             return null;
         }
 
