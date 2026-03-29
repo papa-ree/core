@@ -127,10 +127,11 @@
                 this.uploading = false; 
                 this.overallError = '{{ __('Upload failed. Please try again.') }}'; 
             };
-            const progressCallback = (progress) => { 
-                this.uploadProgress = progress;
+            const progressCallback = (event) => { 
+                let p = event && event.detail ? event.detail.progress : event;
+                this.uploadProgress = p;
                 {{-- For simplicity, apply same progress to all currently uploading --}}
-                this.files.forEach(f => { if(f.uploading) f.progress = progress; });
+                this.files.forEach(f => { if(f.uploading) f.progress = p; });
             };
 
             if (this.isMultiple) {
@@ -159,8 +160,9 @@
                             currentFileIndex++;
                             uploadNext(); 
                         },
-                        (progress) => { 
-                            if (fEntry) fEntry.progress = progress;
+                        (event) => { 
+                            let p = event && event.detail ? event.detail.progress : event;
+                            if (fEntry) fEntry.progress = p;
                         }
                     );
                 };
