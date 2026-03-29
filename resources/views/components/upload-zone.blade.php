@@ -119,23 +119,56 @@
             this.uploading = true;
             
             {{-- Upload via Livewire --}}
-            $wire.upload(
-                '{{ $wireModel }}',
-                this.isMultiple ? validFiles : validFiles[0],
-                () => { 
-                    this.uploading = false;
-                    this.files.forEach(f => { f.uploading = false; f.progress = 100; });
-                },
-                () => { 
-                    this.uploading = false; 
-                    this.overallError = '{{ __('Upload failed. Please try again.') }}'; 
-                },
-                (progress) => { 
-                    this.uploadProgress = progress;
-                    {{-- For simplicity, apply same progress to all currently uploading --}}
-                    this.files.forEach(f => { if(f.uploading) f.progress = progress; });
-                }
-            );
+            const successCallback = () => { 
+                this.uploading = false;
+                this.files.forEach(f => { f.uploading = false; f.progress = 100; });
+            };
+            const errorCallback = () => { 
+                this.uploading = false; 
+                this.overallError = '{{ __('Upload failed. Please try again.') }}'; 
+            };
+            const progressCallback = (progress) => { 
+                this.uploadProgress = progress;
+                {{-- For simplicity, apply same progress to all currently uploading --}}
+                this.files.forEach(f => { if(f.uploading) f.progress = progress; });
+            };
+
+            if (this.isMultiple) {
+                let currentFileIndex = 0;
+                
+                const uploadNext = () => {
+                    if (currentFileIndex >= validFiles.length) {
+                        this.uploading = false;
+                        return;
+                    }
+
+                    const file = validFiles[currentFileIndex];
+                    const fEntry = this.files.find(f => f.name === file.name && f.size === ((file.size / 1024).toFixed(1) + ' KB'));
+
+                    if (fEntry) fEntry.uploading = true;
+
+                    $wire.upload('{{ $wireModel }}', file, 
+                        () => { 
+                            if (fEntry) { fEntry.uploading = false; fEntry.progress = 100; }
+                            currentFileIndex++;
+                            uploadNext();
+                        },
+                        () => { 
+                            if (fEntry) { fEntry.uploading = false; }
+                            this.overallError = '{{ __('Upload failed. Please try again.') }}'; 
+                            currentFileIndex++;
+                            uploadNext(); 
+                        },
+                        (progress) => { 
+                            if (fEntry) fEntry.progress = progress;
+                        }
+                    );
+                };
+
+                uploadNext();
+            } else {
+                $wire.upload('{{ $wireModel }}', validFiles[0], successCallback, errorCallback, progressCallback);
+            }
         },
 
         removeFile(index) {
