@@ -106,37 +106,66 @@ The `x-core::upload-zone` is a pure Alpine.js + Livewire drag-and-drop file uplo
 #### Features
 
 - **Drag-and-Drop**: Visual feedback when dragging files over the zone.
+- **Multiple Upload**: Support for selecting and uploading multiple files simultaneously.
 - **Client-side Validation**: Instant checks for file type and size before uploading.
-- **Image Preview**: Displays a thumbnail for image files.
-- **File Info**: Shows filename and size for non-image or previewed files.
-- **Livewire Integration**: Built-in support for `$wire.upload()` with a progress bar.
+- **Image Preview**: Displays a thumbnail grid for image files.
+- **File Info**: Shows filename, size, and upload progress status for each file.
+- **Livewire Integration**: Built-in support for `$wire.upload()` with individual progress bars.
 - **Dark Mode**: Fully styled for both light and dark themes.
 
 #### Usage
 
+In your Livewire component, ensure you use the `WithFileUploads` trait and define the property:
+
+```php
+use Livewire\WithFileUploads;
+
+class MyComponent extends Component {
+    use WithFileUploads;
+
+    public $myFiles = []; // For multiple="true"
+    // OR
+    public $myFile;       // For multiple="false"
+}
+```
+
+Then in your Blade view:
+
 ```blade
 <x-core::upload-zone
-    wire:model.live="thumbnail"
-    accept="image/png,image/jpeg,image/jpg"
-    maxSize="1024"
-    :label="__('Drop your image here or click to browse')"
-    :hint="__('Only PNG/JPG, Max 1MB')"
-    class="min-h-[200px]"
+    wire:model.live="myFiles"
+    multiple
+    accept="image/png,image/jpeg,application/pdf"
+    maxSize="2048"
+    :label="__('Drop files here or click to browse')"
+    :hint="__('PNG, JPG, PDF up to 2MB')"
+    class="mb-4"
 />
 ```
 
+#### Supported Data Types
+
+The component binds to your Livewire property using `wire:model`. The data type of the property depends on the `multiple` attribute:
+
+| Mode | `multiple` | Data Type in Livewire | Description |
+| :--- | :--- | :--- | :--- |
+| **Single** | `false` | `TemporaryUploadedFile` | A single file instance. |
+| **Multiple** | `true` | `array<TemporaryUploadedFile>` | A collection of file instances. |
+
+> [!NOTE]
+> All files are uploaded as instances of `Livewire\Features\SupportFileUploads\TemporaryUploadedFile`. You must handle the persistence logic in your component's `updated` hook or submit method.
+
 #### Properties
 
-| Property     | Type     | Default      | Description                                              |
-| ------------ | -------- | ------------ | -------------------------------------------------------- |
-| `wire:model` | `string` | **required** | The Livewire property name to bind the upload.           |
-| `accept`     | `string` | `image/*`    | Comma-separated list of allowed MIME types.              |
-| `maxSize`    | `int`    | `512`        | Maximum file size allowed in Kilobytes (KB).             |
-| `label`      | `string` | `null`       | Main helper text displayed inside the drop zone.         |
-| `hint`       | `string` | `null`       | Sub-label text (e.g., "Max 512KB", "Formats: PNG, JPG"). |
-| `class`      | `string` | `''`         | Custom CSS classes for the component container.          |
-
-```
+| Property | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `wire:model` | `string` | **required** | The Livewire property name to bind the upload. |
+| `multiple` | `boolean` | `false` | Whether to allow multiple file selection and upload. |
+| `accept` | `string` | `image/*` | Comma-separated list of allowed MIME types or wildcards. |
+| `maxSize` | `int` | `512` | Maximum file size allowed in Kilobytes (KB). |
+| `label` | `string` | `null` | Main helper text displayed inside the drop zone. |
+| `hint` | `string` | `null` | Sub-label text (e.g., "Max 512KB", "Formats: PNG, JPG"). |
+| `class` | `string` | `''` | Custom CSS classes for the component container. |
 
 ## Credits
 
