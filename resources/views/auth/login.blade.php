@@ -1,10 +1,12 @@
 @extends('core::layouts.guest')
 
 <style>
+    /* ── Hide reCAPTCHA badge ── */
     .grecaptcha-badge {
         visibility: hidden !important;
     }
 
+    /* ── Shake animation for error banner ── */
     @keyframes shake {
 
         0%,
@@ -36,268 +38,285 @@
     .shake {
         animation: shake 0.45s ease;
     }
+
+    /* ── Shimmer effect on brand heading ── */
+    @keyframes shimmer {
+        0% {
+            background-position: -200% center;
+        }
+
+        100% {
+            background-position: 200% center;
+        }
+    }
+
+    .shimmer-brand {
+        background: linear-gradient(90deg, #c4b5fd, #ffffff, #e9d5ff, #ffffff, #c4b5fd);
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: shimmer 4s linear infinite;
+    }
+
+    /* ── Floating particle blobs ── */
+    @keyframes floatBlob {
+
+        0%,
+        100% {
+            transform: translateY(0) scale(1);
+        }
+
+        50% {
+            transform: translateY(-18px) scale(1.04);
+        }
+    }
+
+    .blob-float {
+        animation: floatBlob 7s ease-in-out infinite;
+    }
+
+    .blob-float-slow {
+        animation: floatBlob 10s ease-in-out infinite reverse;
+    }
+
+    /* ── Subtle glow pulse on logo icon ── */
+    @keyframes glowPulse {
+
+        0%,
+        100% {
+            box-shadow: 0 0 18px 4px rgba(167, 139, 250, .45);
+        }
+
+        50% {
+            box-shadow: 0 0 36px 10px rgba(196, 167, 255, .65);
+        }
+    }
+
+    .logo-glow {
+        animation: glowPulse 3.5s ease-in-out infinite;
+    }
+
+    /* ── Input focus glow ── */
+    .input-purple:focus {
+        border-color: #7c3aed !important;
+        box-shadow: 0 0 0 3px rgba(124, 58, 237, .18);
+        outline: none;
+    }
+
+    .input-red:focus {
+        border-color: #ef4444 !important;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, .18);
+        outline: none;
+    }
+
+    /* ── Glass card (mobile) ── */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+    }
+
+    .dark .glass-card {
+        background: rgba(15, 12, 41, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+    }
+
+    /* ── Hide x-cloak elements before Alpine init ── */
+    [x-cloak] {
+        display: none !important;
+    }
 </style>
+
 <script>
-    window.addEventListener('error', function (e) {
-        if (e.message && e.message.includes('grecaptcha is not defined')) {
+    /* Reload if reCAPTCHA script fails to load */
+    window.addEventListener( 'error', function ( e )
+    {
+        if ( e.message && e.message.includes( 'grecaptcha is not defined' ) ) {
             window.location.reload();
         }
-    });
+    } );
 </script>
 
 {!! RecaptchaV3::initJs() !!}
 
-<div x-data="loginPage()" class="min-h-screen bg-gray-50 dark:bg-gray-900" x-cloak>
-    <div class="flex justify-center min-h-screen">
+<div x-data="loginPage()" class="min-h-screen" x-cloak>
 
-        {{-- Left Side - Gradient Banner --}}
-        <div class="hidden lg:flex lg:w-1/2 xl:w-2/3 relative overflow-hidden">
-            <div class="absolute inset-0"
-                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);"></div>
-            <div class="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -mr-48 -mt-48"></div>
-            <div class="absolute bottom-0 left-0 w-64 h-64 bg-white/10 rounded-full -ml-32 -mb-32"></div>
+    {{-- ════════════════════════════════════════════════════
+    FLOATING CONTROLS — Dark Mode + Language (top-right)
+    ════════════════════════════════════════════════════ --}}
+    <div class="fixed top-4 right-4 z-50 flex items-center gap-2">
+        {{-- Dark Mode Toggle --}}
+        <x-core::dark-mode-toggle />
 
-            <div class="relative z-10 flex flex-col justify-center px-12 xl:px-20 text-white">
-                <div class="mb-8">
-                    <div
-                        class="inline-flex items-center justify-center w-16 h-16 mb-6 rounded-2xl bg-white/20 backdrop-blur-md">
-                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                    </div>
-                    <h1 class="text-4xl xl:text-5xl font-bold mb-4">BALé CMS</h1>
-                    <p class="text-xl text-white/90 max-w-xl">
-                        Content Management System yang modern dan powerful untuk Dinas Kominfo Ponorogo
-                    </p>
-                </div>
+        {{-- Language Switcher --}}
+        <livewire:core.shared-components.locale-dropdown />
+    </div>
 
-                <div class="space-y-4 max-w-md">
-                    <div class="flex items-start gap-3">
-                        <div class="shrink-0 w-6 h-6 rounded-full bg-white/20 flex items-center justify-center mt-1">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="font-semibold">Multi-tenant Support</p>
-                            <p class="text-white/80 text-sm">Kelola berbagai website dalam satu platform</p>
-                        </div>
-                    </div>
-                    <div class="flex items-start gap-3">
-                        <div class="shrink-0 w-6 h-6 rounded-full bg-white/20 flex items-center justify-center mt-1">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="font-semibold">Easy to Use</p>
-                            <p class="text-white/80 text-sm">Interface intuitif untuk pengelolaan konten</p>
-                        </div>
-                    </div>
-                </div>
+    {{-- ════════════════════════════════════════════════════
+    MOBILE LAYOUT (< lg) Full-screen gradient + floating glass card ════════════════════════════════════════════════════
+        --}} <div
+        class="lg:hidden relative min-h-screen flex flex-col items-center justify-center px-5 py-14 overflow-hidden"
+        style="background: linear-gradient(140deg, #0f0c29 0%, #302b63 45%, #24243e 100%);">
+
+        {{-- Decorative blobs --}}
+        <div class="blob-float absolute top-0 -left-16 w-72 h-72 rounded-full opacity-20 pointer-events-none"
+            style="background: radial-gradient(circle, #667eea, #764ba2);"></div>
+        <div class="blob-float-slow absolute bottom-0 -right-16 w-56 h-56 rounded-full opacity-20 pointer-events-none"
+            style="background: radial-gradient(circle, #f093fb, #f5576c);"></div>
+        <div class="absolute top-1/3 right-8 w-24 h-24 rounded-full opacity-10 pointer-events-none"
+            style="background: #a78bfa;"></div>
+
+        {{-- Brand header --}}
+        <div class="relative z-10 text-center mb-8">
+            <div class="logo-glow inline-flex items-center justify-center w-16 h-16 mb-5 rounded-2xl"
+                style="background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.22);">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
             </div>
+            <h1 class="shimmer-brand text-3xl font-extrabold tracking-tight">BALé CMS</h1>
+            <p class="text-white/60 text-sm mt-1">{{ __('Content Management System') }}</p>
         </div>
 
-        {{-- Right Side - Login Form --}}
-        <div class="flex items-center justify-center w-full lg:w-1/2 xl:w-1/3 px-6 py-12">
-            <div class="w-full max-w-md">
+        {{-- Glass Login Card --}}
+        <div class="relative z-10 w-full max-w-sm glass-card rounded-3xl p-7 shadow-2xl">
+            @include('core::auth._login-form-inner', ['dark' => true])
+        </div>
 
-                {{-- Logo Mobile --}}
-                <div class="lg:hidden mb-8 text-center">
-                    <div class="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-2xl"
-                        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);">
-                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                    </div>
-                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">BALé CMS</h2>
+        {{-- Footer --}}
+        <p class="relative z-10 mt-8 text-xs text-white/40 text-center">
+            &copy; {{ date('Y') }} Dinas Kominfo dan Statistik Kabupaten Ponorogo
+        </p>
+</div>
+
+{{-- ════════════════════════════════════════════════════
+DESKTOP LAYOUT (≥ lg)
+Left: branding panel | Right: login form
+════════════════════════════════════════════════════ --}}
+<div class="hidden lg:flex min-h-screen bg-gray-50 dark:bg-[#0f0c29]">
+
+    {{-- ── LEFT: Branding Panel ────────────────────────── --}}
+    <div class="relative flex w-[55%] xl:w-3/5 overflow-hidden"
+        style="background: linear-gradient(140deg, #0f0c29 0%, #302b63 50%, #24243e 100%);">
+
+        {{-- Decorative circles --}}
+        <div class="blob-float absolute -top-24 -left-24 w-96 h-96 rounded-full opacity-25 pointer-events-none"
+            style="background: radial-gradient(circle, #667eea, #764ba2);"></div>
+        <div class="blob-float-slow absolute -bottom-24 -right-24 w-80 h-80 rounded-full opacity-20 pointer-events-none"
+            style="background: radial-gradient(circle, #f093fb, #f5576c);"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] rounded-full opacity-[0.07] pointer-events-none border border-white/20"
+            style="background: radial-gradient(circle, rgba(167,139,250,0.3), transparent 70%);"></div>
+        <div class="absolute top-20 right-20 w-32 h-32 rounded-full opacity-10 pointer-events-none"
+            style="background: #a78bfa;"></div>
+        <div class="absolute bottom-32 left-16 w-20 h-20 rounded-full opacity-10 pointer-events-none"
+            style="background: #60a5fa;"></div>
+
+        {{-- Content --}}
+        <div class="relative z-10 flex flex-col justify-center px-14 xl:px-20 text-white w-full">
+
+            {{-- Logo + Name --}}
+            <div class="mb-10">
+                <div class="logo-glow inline-flex items-center justify-center w-20 h-20 mb-7 rounded-3xl"
+                    style="background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.18);">
+                    <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"
+                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
                 </div>
 
-                {{-- Login Card --}}
-                <div
-                    class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-8">
+                <h1 class="shimmer-brand text-5xl xl:text-6xl font-extrabold tracking-tight leading-tight mb-4">
+                    BALé CMS
+                </h1>
 
-                    <div class="text-center mb-8">
-                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Selamat Datang</h2>
-                        <p class="text-gray-600 dark:text-gray-400">Masuk ke akun Anda untuk melanjutkan</p>
+                <p class="text-white/70 text-lg xl:text-xl max-w-lg leading-relaxed">
+                    {{ __('Content Management System yang modern dan powerful dari Dinas Kominfo dan Statistik Kabupaten Ponorogo') }}
+                </p>
+            </div>
+
+            {{-- Feature list --}}
+            <div class="space-y-6 max-w-md">
+                @foreach([
+                        [
+                            'icon' => 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+                            'title' => 'Multi-tenant Support',
+                            'desc' => 'Kelola berbagai website dalam satu platform terpusat'
+                        ],
+                        // [
+                        //     'icon' => 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
+                        //     'title' => 'Peningkatan Keamanan',
+                        //     'desc' => 'Multi-layer authentication & rate-limit protection'
+                        // ],
+                        [
+                            'icon' => 'M13 10V3L4 14h7v7l9-11h-7z',
+                            'title' => 'Peningkatan Performa',
+                            'desc' => 'Interface responsif & optimasi konten otomatis'
+                        ],
+                    ] as $feature)
+                    <div class="flex items-start gap-4">
+                        <div class="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl mt-0.5"
+                             style="background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.15);">
+                            <svg class="w-4 h-4 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $feature['icon'] }}" />
+                            </svg>
+                        </div>
+                        <div>
+                          <p class="font-semibold text-white/90 text-sm leading-tight mb-1">{{ $feature['title'] }}</p>
+                            <p class="text-white/55 text-xs leading-relaxed max-w-[280px]">{{ $feature['desc'] }}</p>
+                        </div>
                     </div>
+                @endforeach
+            </div>
+                {{-- Bottom badge --}}
+            <div class="mt-14">
+                <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest"
+                      style="background: rgba(167,139,250,0.15); border: 1px solid rgba(167,139,250,0.30); color: #c4b5fd;">
+                        <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
+                    BALé CMS
+                </span>
+            </div>
+        </div>
+    </div>
 
-                    {{-- ============================================================
-                    ERROR BANNER — tampil jika ada error validasi dari Laravel
-                    ============================================================ --}}
-                    @if ($errors->any())
-                        <div class="mb-6 rounded-xl overflow-hidden shake"
-                            style="border: 1px solid rgba(239,68,68,0.3); background: linear-gradient(135deg, rgba(254,242,242,0.9), rgba(255,235,235,0.7));"
-                            x-data="{ open: true }" x-show="open">
-                            <div class="flex items-start gap-3 px-4 py-3.5">
-                                {{-- Ikon peringatan --}}
-                                <div class="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg mt-0.5"
-                                    style="background: rgba(239,68,68,0.15);">
-                                    <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                                    </svg>
-                                </div>
+    {{-- ── RIGHT: Login Form Panel ─────────────────────── --}}
+        <div class="flex items-center justify-center w-[45%] xl:w-2/5 px-8 xl:px-14 bg-white dark:bg-gray-900">
+        <div class="w-full max-w-md">
+            {{-- Card header --}}
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-1">{{ __('Selamat Datang') }}</h2>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">{{ __('Masuk ke akun Anda untuk melanjutkan') }}</p>
+            </div>
 
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-semibold text-red-700 dark:text-red-300 mb-0.5">
-                                        Login Gagal
-                                    </p>
-                                    @foreach ($errors->all() as $error)
-                                        <p class="text-xs text-red-600/80 dark:text-red-400/80">{{ $error }}</p>
-                                    @endforeach
+                @include('core::auth._login-form-inner', ['dark' => false])
 
-                                    {{-- Sisa percobaan sebelum dikunci --}}
-                                    @php $attemptsRemaining = session('attempts_remaining') @endphp
-                                    @if (!is_null($attemptsRemaining))
-                                        <div class="flex items-center gap-1.5 mt-2 pt-2"
-                                            style="border-top: 1px solid rgba(239,68,68,0.2);">
-                                            {{-- 3 dot: merah = sudah gagal, abu = tersisa --}}
-                                            <div class="flex gap-0.5">
-                                                @for ($i = 0; $i < 3; $i++)
-                                                    <div
-                                                        class="w-4 h-1.5 rounded-full {{ $i < (3 - $attemptsRemaining) ? 'bg-red-500' : 'bg-red-200' }}">
-                                                    </div>
-                                                @endfor
-                                            </div>
-                                            <p class="text-xs font-medium"
-                                                style="color: {{ $attemptsRemaining <= 1 ? '#dc2626' : '#b91c1c' }};">
-                                                @if ($attemptsRemaining <= 0)
-                                                    Akun akan segera dikunci
-                                                @else
-                                                    {{ $attemptsRemaining }} percobaan tersisa sebelum dikunci
-                                                @endif
-                                            </p>
-                                        </div>
-                                    @endif
-                                </div>
-
-                                {{-- Tombol tutup --}}
-                                <button type="button" @click="open = false"
-                                    class="shrink-0 text-red-400 hover:text-red-600 transition-colors">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    @endif
-                    {{-- END ERROR BANNER --}}
-
-                    <form method="POST" action="{{ route('login.store') }}" autocomplete="off">
-                        @csrf
-
-                        {{-- Username Field --}}
-                        <div class="mb-5">
-                            <label for="username"
-                                class="block mb-2 text-sm font-medium {{ $errors->has('username') ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300' }}">
-                                Username
-                            </label>
-                            <div class="relative">
-                                <input type="text" name="username" id="username" value="{{ old('username') }}"
-                                    placeholder="Masukkan username" autofocus autocomplete="off"
-                                    class="block w-full px-4 py-3 text-gray-900 placeholder-gray-400 bg-white border rounded-lg
-                                              dark:placeholder-gray-500 dark:bg-gray-900 dark:text-gray-100
-                                              focus:outline-none focus:ring-2 transition-colors
-                                              {{ $errors->any()
-    ? 'border-red-400 dark:border-red-500 focus:border-red-500 focus:ring-red-500/20 dark:focus:ring-red-500/20'
-    : 'border-gray-300 dark:border-gray-600 focus:border-purple-500 dark:focus:border-purple-400 focus:ring-purple-500/20 dark:focus:ring-purple-400/20' }}" />
-                                @if ($errors->any())
-                                    <div class="absolute right-3 top-1/2 -translate-y-1/2">
-                                        <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd"
-                                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                                clip-rule="evenodd" />
-                                        </svg>
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
-
-                        {{-- Password Field --}}
-                        <div class="mb-6">
-                            <label for="password"
-                                class="block mb-2 text-sm font-medium {{ $errors->has('username') ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300' }}">
-                                Password
-                            </label>
-                            <div class="relative">
-                                <input type="password" name="password" id="password" placeholder="Masukkan password"
-                                    autocomplete="off"
-                                    class="block w-full px-4 py-3 text-gray-900 placeholder-gray-400 bg-white border rounded-lg
-                                              dark:placeholder-gray-500 dark:bg-gray-900 dark:text-gray-100
-                                              focus:outline-none focus:ring-2 transition-colors
-                                              {{ $errors->any()
-    ? 'border-red-400 dark:border-red-500 focus:border-red-500 focus:ring-red-500/20 dark:focus:ring-red-500/20'
-    : 'border-gray-300 dark:border-gray-600 focus:border-purple-500 dark:focus:border-purple-400 focus:ring-purple-500/20 dark:focus:ring-purple-400/20' }}" />
-                                @if ($errors->any())
-                                    <div class="absolute right-3 top-1/2 -translate-y-1/2">
-                                        <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd"
-                                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                                clip-rule="evenodd" />
-                                        </svg>
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
-
-                        {!! RecaptchaV3::field('login') !!}
-
-                        {{-- Submit Button --}}
-                        <div class="mt-6">
-                            <button type="submit" :disabled="!recaptchaValue" x-show="recaptchaValue"
-                                class="w-full px-6 py-3 text-sm font-semibold text-white transition-all duration-300 rounded-lg shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                                Masuk
-                            </button>
-
-                            <button type="button" disabled x-show="!recaptchaValue"
-                                class="w-full px-6 py-3 text-sm font-semibold text-gray-500 bg-gray-100 border border-gray-300 rounded-lg dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600 cursor-not-allowed flex items-center justify-center gap-2">
-                                <svg class="animate-spin h-5 w-5 text-gray-600 dark:text-gray-400"
-                                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
-                                        stroke-width="4" />
-                                    <path class="opacity-75" fill="currentColor"
-                                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                                </svg>
-                                Memuat...
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                {{-- Footer Text --}}
-                <p class="mt-8 text-xs text-center text-gray-500 dark:text-gray-400">
+                {{-- Footer --}}
+                <p class="mt-8 text-xs text-center text-gray-400 dark:text-gray-600">
                     &copy; {{ date('Y') }} Dinas Kominfo dan Statistik Kabupaten Ponorogo
                 </p>
             </div>
         </div>
     </div>
+ 
+           
+ 
 </div>
-
-<script>
-    function loginPage ()
-    {
+  
+  <script>
+    function loginPage() {
         return {
-            recaptchaValue: '',
+             recaptchaValue: '',
+              showPassword: false,
 
-            init ()
-            {
-                const observer = new MutationObserver( () =>
-                {
-                    const input = document.querySelector( 'input[name="g-recaptcha-response"]' );
-                    if ( input ) {
+            init() {
+                const observer = new MutationObserver(() => {
+                    const input = document.querySelector('input[name="g-recaptcha-response"]');
+                    if (input) {
                         this.recaptchaValue = input.value || '';
                     }
-                } );
-                observer.observe( document.body, { subtree: true, attributes: true } );
+                });
+                observer.observe(document.body, { subtree: true, attributes: true });
             },
         };
     }
