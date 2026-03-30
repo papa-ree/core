@@ -37,6 +37,14 @@
         animation: shake 0.45s ease;
     }
 </style>
+<script>
+    window.addEventListener('error', function (e) {
+        if (e.message && e.message.includes('grecaptcha is not defined')) {
+            window.location.reload();
+        }
+    });
+</script>
+
 {!! RecaptchaV3::initJs() !!}
 
 <div x-data="loginPage()" class="min-h-screen bg-gray-50 dark:bg-gray-900" x-cloak>
