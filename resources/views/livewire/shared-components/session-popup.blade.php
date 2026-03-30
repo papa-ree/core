@@ -33,7 +33,7 @@
                             <span
                                 class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-white/20 text-white">
                                 <span class="w-1.5 h-1.5 rounded-full bg-green-300 animate-pulse inline-block"></span>
-                                {{ __('SSO Active') }}
+                                {{ $isSso ? __('SSO Active') : __('Session Active') }}
                             </span>
                         </div>
                         {{-- Close button --}}
@@ -51,7 +51,7 @@
                     <div class="mb-4">
                         <p class="text-xs text-white/70 mb-0.5">{{ __('Welcome back,') }}</p>
                         <p class="text-base font-bold text-white leading-tight truncate">{{ $userName }}</p>
-                        <p class="text-xs text-white/60 mt-0.5">{{ __('Login via SSO') }}</p>
+                        <p class="text-xs text-white/60 mt-0.5">{{ $isSso ? __('Login via SSO') : __('Direct Login') }}</p>
                     </div>
 
                     {{-- Dashboard button --}}

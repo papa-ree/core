@@ -8,14 +8,15 @@ use Livewire\Component;
 class SessionPopup extends Component
 {
     public bool $isLoggedIn = false;
+    public bool $isSso = false;
     public ?string $userName = null;
     public ?string $dashboardUrl = null;
 
     public function mount(): void
     {
-        $hasKeycloakSession = session()->has('keycloak_id_token');
+        $this->isSso = session()->has('keycloak_id_token');
 
-        if ($hasKeycloakSession && Auth::check()) {
+        if (Auth::check()) {
             $this->isLoggedIn = true;
             $this->userName = Auth::user()->name;
 
