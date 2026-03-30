@@ -338,5 +338,3 @@
         <p class="text-xs font-medium text-red-700 dark:text-red-400" x-text="overallError"></p>
     </div>
 </div>
-
-</div>
