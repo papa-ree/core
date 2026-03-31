@@ -12,6 +12,11 @@ class DashboardSelector extends Controller
     {
         $user = Auth::user();
 
+        // prioritize has dashboard permissions
+        if ($user?->can('dashboard')) {
+            return redirect()->route('rakaca.landlord-dashboard.index');
+        }
+
         // check rakaca package
         if (
             class_exists(\Paparee\Rakaca\Livewire\Pages\Guest\Dashboard\Index::class)
@@ -20,6 +25,7 @@ class DashboardSelector extends Controller
             return redirect()->route('rakaca.guest-dashboard.index');
         }
 
-        return redirect()->route('rakaca.landlord-dashboard.index');
+        // Fallback for users with no dashboard permissions
+        return redirect('/');
     }
 }
