@@ -71,7 +71,7 @@
                                     {{ __('Member since') }}
                                 </span>
                                 <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                                    {{ $this->user->created_at->format('d M Y') }}
+                                    {{ $this->user->created_at}}
                                 </span>
                             </div>
     
