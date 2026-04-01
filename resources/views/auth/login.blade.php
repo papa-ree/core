@@ -274,7 +274,7 @@ Left: branding panel | Right: login form
                 <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest"
                       style="background: rgba(167,139,250,0.15); border: 1px solid rgba(167,139,250,0.30); color: #c4b5fd;">
                         <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
-                    BALé CMS
+                    {{ __('BALé CMS on Dinas Kominfo dan Statistik Kabupaten Ponorogo') }}
                 </span>
             </div>
         </div>

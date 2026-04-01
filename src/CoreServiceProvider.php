@@ -90,7 +90,19 @@ class CoreServiceProvider extends ServiceProvider
         $this->offerPublishing();
         $this->registerViews();
         $this->registerBladeComponents();
+        $this->registerLivewire4Namespaces();
         $this->registerLivewireComponents();
+    }
+
+    /**
+     * Mendaftarkan namespace untuk Livewire 4 Single-File Components
+     */
+    protected function registerLivewire4Namespaces(): void
+    {
+        Livewire::addNamespace(
+            'core-shared-components',
+            __DIR__ . '/../resources/views/livewire/shared-components'
+        );
     }
 
     protected function registerViews(): void

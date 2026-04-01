@@ -38,8 +38,18 @@
 
                 <div class="mt-4 flex flex-col gap-2">
                     <button wire:click="delete"
+                        wire:loading.attr="disabled"
+                        wire:target="delete"
                         class="w-full py-2 px-3 inline-flex justify-center items-center gap-x-2 text-xs font-semibold rounded-lg border border-transparent bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-red-500 transition-all">
-                        Yes, Delete Item
+                        {{-- Spinner --}}
+                        <svg wire:loading wire:target="delete"
+                            class="size-3.5 animate-spin text-white/80" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                        </svg>
+                        {{-- Label: ganti teks saat loading --}}
+                        <span wire:loading.remove wire:target="delete">Yes, Delete Item</span>
+                        <span wire:loading wire:target="delete">Deleting...</span>
                     </button>
                     <button type="button"
                         class="hs-dropdown-toggle w-full py-2 px-3 inline-flex justify-center items-center gap-x-2 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 transition-all">
