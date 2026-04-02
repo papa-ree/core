@@ -17,5 +17,7 @@ class IpBlockList extends Model
 
     protected $casts = [
         'blocked_until' => 'datetime',
+        'created_at' => 'datetime:d M Y',
+        'updated_at' => 'datetime:d M Y',
     ];
 }

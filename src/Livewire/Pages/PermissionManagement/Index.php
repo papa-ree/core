@@ -11,12 +11,6 @@ use Livewire\Attributes\{Layout, Title, Computed, On};
 #[Title('Permission Management')]
 class Index extends Component
 {
-    use WithPagination;
-
-    public $query = '';
-    public $sortField = 'name';
-    public $sortDirection = 'asc';
-
     public function mount()
     {
         if (!auth()->user()->can('permission.read')) {
@@ -33,29 +27,6 @@ class Index extends Component
         return view('core::livewire.pages.permission-management.index');
     }
 
-    #[Computed]
-    public function permissions()
-    {
-        return Permission::query()
-            ->with('roles')
-            ->when($this->query, function ($query) {
-                $query->where('name', 'like', '%' . $this->query . '%')
-                    ->orWhere('guard_name', 'like', '%' . $this->query . '%');
-            })
-            ->orderBy($this->sortField, $this->sortDirection)
-            ->paginate(10);
-    }
-
-    public function sortBy($field)
-    {
-        if ($this->sortField === $field) {
-            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
-        } else {
-            $this->sortField = $field;
-            $this->sortDirection = 'asc';
-        }
-    }
-
     #[On('deleteItem')]
     public function deletePermission($id)
     {
@@ -65,7 +36,7 @@ class Index extends Component
 
         Permission::findOrFail($id)->delete();
 
-        session()->flash('message', 'Permission deleted successfully.');
+        $this->dispatch('toast', message: 'Permission deleted successfully.', type: 'success');
         $this->dispatch('paginated');
     }
 }

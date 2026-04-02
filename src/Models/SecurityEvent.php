@@ -22,6 +22,7 @@ class SecurityEvent extends Model
 
     protected $casts = [
         'payload' => 'array',
-        'created_at' => 'datetime',
+        'created_at' => 'datetime:d M Y',
+        'updated_at' => 'datetime:d M Y',
     ];
 }
