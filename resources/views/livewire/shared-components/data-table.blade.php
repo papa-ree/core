@@ -126,7 +126,11 @@ new class extends Component {
             $builder->with($this->with);
         }
         foreach ($this->constraints as $col => $val) {
-            $builder->where($col, $val);
+            if (is_array($val) && count($val) === 2) {
+                $builder->where($col, $val[0], $val[1]);
+            } else {
+                $builder->where($col, $val);
+            }
         }
         foreach ($this->activeFilters as $col => $val) {
             if ($val !== '' && $val !== null) {
