@@ -59,12 +59,12 @@ Route::group(['middleware' => ['web']], function () {
             $user = Socialite::driver('keycloak')->user();
 
             // Buat login ke aplikasi Laravel, bisa pakai email / ID dari Keycloak
+            // Menggunakan 'username' karena 'nip' tidak ada di database
             $authUser = User::firstOrCreate([
-                'nip' => $user->getNickname(),
+                'username' => $user->getNickname(),
             ], [
                 'uuid' => $user->getId(),
                 'name' => $user->getName(),
-                'username' => $user->getNickname(),
                 'email' => $user->getEmail(),
                 'password' => bcrypt(Str::random(16)), // password random
             ]);
@@ -82,6 +82,17 @@ Route::group(['middleware' => ['web']], function () {
             ]);
             return redirect()->route('dashboard');
         } catch (\Exception $e) {
+            // Log error untuk debug, bantu identifikasi jika error bukan sekedar silent login gagal
+            \Log::error('Keycloak Login Error: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+
+            // Cek apakah ini silent login failure (sering terjadi saat InvalidStateException atau user batal)
+            // Jika sudah ada prompt=login dan masih error, kemungkinan besar error sistem bukan sekedar sesi
+            if (request()->has('prompt') || request()->has('error')) {
+                 return redirect()->route('login')->with('error', 'Authentication failed: ' . $e->getMessage());
+            }
+
             // Silent login gagal (karena user belum login di Keycloak)
             return redirect()->route('force.login'); // misalnya redirect ke login normal
         }
