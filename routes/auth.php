@@ -53,7 +53,17 @@ Route::group(['middleware' => ['web']], function () {
             ->redirect();
     })->name('force.login');
 
+    Route::get('/login/sso-check', function () {
+        // Tandai bahwa kita sedang mencoba SSO check untuk mencegah loop di middleware
+        session(['sso_checking' => true]);
+
+        return Socialite::driver('keycloak')
+            ->with(['prompt' => 'none'])
+            ->redirect();
+    })->name('login.sso-check');
+
     Route::get('/login/keycloak/callback', function () {
+        $isSsoCheck = session()->pull('sso_checking', false);
 
         try {
             $user = Socialite::driver('keycloak')->user();
@@ -79,9 +89,16 @@ Route::group(['middleware' => ['web']], function () {
             session([
                 'keycloak_id_token' => $user->accessTokenResponseBody['id_token'],
                 'keycloak_access_token' => $user->token,
+                'sso_checked' => true, // Tandai SSO sudah dicek dan berhasil
             ]);
             return redirect()->route('dashboard');
         } catch (\Exception $e) {
+            // Jika ini adalah silent check (prompt=none) dan gagal, jangan anggap error fatal
+            if ($isSsoCheck) {
+                session(['sso_checked' => true]); // Tandai SSO sudah dicek meskipun gagal
+                return redirect()->to('/'); // Kembali ke home sebagai guest
+            }
+
             // Log error untuk debug, bantu identifikasi jika error bukan sekedar silent login gagal
             \Log::error('Keycloak Login Error: ' . $e->getMessage(), [
                 'exception' => $e

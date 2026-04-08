@@ -26,6 +26,7 @@ class CheckKeycloakSession
      */
     public function handle(Request $request, Closure $next)
     {
+        // 1. Jika User SUDAH Login: Cek apakah session di Keycloak masih aktif
         if (Auth::check() && session()->has('keycloak_access_token')) {
             $token = session()->get('keycloak_access_token');
 
@@ -36,12 +37,22 @@ class CheckKeycloakSession
                     return $this->logoutUser();
                 }
             } catch (\Exception $e) {
-                // If there's an error reaching Keycloak, we might want to log it but let the user continue,
-                // or logout for security. In this case, we logout to be safe if Keycloak confirms session invalidity.
                 if (str_contains($e->getMessage(), '401') || str_contains($e->getMessage(), '403')) {
                     return $this->logoutUser();
                 }
             }
+        } 
+        
+        // 2. Jika User BELUM Login: Coba Auto-Login (Silent SSO Check)
+        // Hanya dilakukan sekali per session (sso_checked) untuk menghindari loop
+        elseif (
+            !Auth::check() && 
+            !session()->has('sso_checked') && 
+            $request->isMethod('get') && 
+            !$request->ajax() &&
+            !$request->is('login*', 'logout*', 'entrance.gate*', 'login/keycloak/callback*')
+        ) {
+            return redirect()->route('login.sso-check');
         }
 
         return $next($request);
