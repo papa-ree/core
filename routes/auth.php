@@ -107,7 +107,7 @@ Route::group(['middleware' => ['web']], function () {
             // Cek apakah ini silent login failure (sering terjadi saat InvalidStateException atau user batal)
             // Jika sudah ada prompt=login dan masih error, kemungkinan besar error sistem bukan sekedar sesi
             if (request()->has('prompt') || request()->has('error')) {
-                 return redirect()->route('login')->with('error', 'Authentication failed: ' . $e->getMessage());
+                return redirect()->route('login')->with('error', 'Authentication failed: ' . $e->getMessage());
             }
 
             // Silent login gagal (karena user belum login di Keycloak)
