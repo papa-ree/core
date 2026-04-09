@@ -91,7 +91,9 @@ Route::group(['middleware' => ['web']], function () {
                 'keycloak_access_token' => $user->token,
                 'sso_checked' => true, // Tandai SSO sudah dicek dan berhasil
             ]);
-            return redirect()->route('dashboard');
+
+            $redirectTo = session()->pull('sso_redirect_back', route('dashboard'));
+            return redirect()->to($redirectTo);
         } catch (\Exception $e) {
             // Jika ini adalah silent check (prompt=none) dan gagal, jangan anggap error fatal
             if ($isSsoCheck) {

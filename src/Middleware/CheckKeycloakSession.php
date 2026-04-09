@@ -53,7 +53,7 @@ class CheckKeycloakSession
             !$request->is('login*', 'logout*', 'entrance.gate*', 'login/keycloak/callback*')
         ) {
             // Simpan URL asal agar bisa kembali setelah auto-login
-            session(['url.intended' => $request->fullUrl()]);
+            session(['sso_redirect_back' => $request->fullUrl()]);
             
             return redirect()->route('login.sso-check');
         }
