@@ -196,12 +196,13 @@ class KeycloakService
         // The URL the user is redirected to after logout.
         $redirectUri = Config::get('app.url');
         $url = Socialite::driver('keycloak')->getLogoutUrl();
-        $params = [
-            'id_token_hint' => $keycloakIdToken, // Ambil id_token dari session
-            'post_logout_redirect_uri' => $redirectUri, // URL redirect setelah logout
-        ];
+        $params = array_filter([
+            'id_token_hint' => $keycloakIdToken,
+            'post_logout_redirect_uri' => $redirectUri,
+            'client_id' => config('services.keycloak.client_id'),
+        ]);
 
-        $url .= '?' . http_build_query($params);
+        $url .= (str_contains($url, '?') ? '&' : '?') . http_build_query($params);
 
         return $url;
     }
