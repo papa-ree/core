@@ -87,10 +87,14 @@ Route::group(['middleware' => ['web']], function () {
 
             Auth::login($authUser, true);
 
+            $tokenResponse = $user->accessTokenResponseBody;
+
             session([
-                'keycloak_id_token' => $user->accessTokenResponseBody['id_token'],
-                'keycloak_access_token' => $user->token,
-                'sso_checked' => true, // Tandai SSO sudah dicek dan berhasil
+                'keycloak_id_token' => $tokenResponse['id_token'],
+                'keycloak_access_token' => $tokenResponse['access_token'],
+                'keycloak_refresh_token' => $tokenResponse['refresh_token'] ?? null,
+                'keycloak_token_expires_at' => now()->addSeconds($tokenResponse['expires_in'] ?? 300)->timestamp,
+                'sso_checked' => true,
             ]);
 
             $redirectTo = session()->pull('sso_redirect_back', route('dashboard'));
