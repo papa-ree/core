@@ -28,6 +28,11 @@ class CheckKeycloakSession
     {
         // 1. Jika User SUDAH Login: Cek apakah session di Keycloak masih aktif
         if (Auth::check() && session()->has('keycloak_access_token')) {
+            // Jika sso_session_sync dimatikan, lewati pengecekan status login
+            if (!config('core.sso_session_sync', true)) {
+                return $next($request);
+            }
+
             $token = session()->get('keycloak_access_token');
 
             try {

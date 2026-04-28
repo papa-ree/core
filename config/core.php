@@ -69,4 +69,15 @@ return [
             'cache_ttl' => env('UMAMI_CACHE_TTL', 300),
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Keycloak Session Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Jika true: maka ketika sso logout maka aplikasi logout, dan sebaliknya
+    | Jika false: maka meskipun sso tidak memiliki sesi aktif maka di aplikasi tetap terlogin
+    |
+    */
+    'sso_session_sync' => env('CORE_SSO_SESSION_SYNC', true),
 ];
