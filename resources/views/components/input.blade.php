@@ -39,20 +39,14 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/zxcvbn/4.4.2/zxcvbn.js"></script>
 @endassets
 
-{{-- Optional inline label (alternative to x-core::label used externally) --}}
-@if ($attributes->has('label'))
-    <x-core::label :value="$attributes['label']" />
-@endif
+<div {{ $attributes->only('class')->merge(['class' => 'w-full']) }}>
+    {{-- Optional inline label (alternative to x-core::label used externally) --}}
+    @if ($attributes->has('label'))
+        <x-core::label :value="$attributes['label']" />
+    @endif
 
-{{-- ============================================================
-     Variant: usePasswordField
-     A password input with an eye icon to toggle visibility.
-     Uses Alpine.js local state `{ hidePassword: true }`.
-     wire:ignore prevents Livewire from re-rendering on update.
-     ============================================================ --}}
-@if ($usePasswordField)
-
-    <div class="relative" x-data="{ hidePassword: true }" wire:ignore>
+    {{-- Variant logic follows --}}
+    @if ($usePasswordField)
         <input
             :type="hidePassword ? 'password' : 'text'"
             {{ $disabled ? 'disabled' : '' }}
@@ -616,3 +610,4 @@
     </script>
 
 @endif
+</div>

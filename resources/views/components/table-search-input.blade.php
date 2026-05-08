@@ -1,4 +1,4 @@
-@props(['placeholder'])
+@props(['placeholder' => 'Cari...'])
 <div class="sm:flex items-center gap-x-3">
     <div class="relative">
         <div wire:loading wire:target='query'
