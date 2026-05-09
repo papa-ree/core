@@ -18,6 +18,15 @@ use Ramsey\Uuid\Uuid;
 class WpSqlMigrator extends Component
 {
     use WithFileUploads;
+    
+    /**
+     * Force Livewire to use the 'local' disk for temporary uploads in this component.
+     * This ensures that SQL files are not uploaded to S3 even if the global default is S3.
+     */
+    public function temporaryFileUploadDisk(): string
+    {
+        return 'local';
+    }
 
     // -----------------------------------------------------------------------
     // Public State
