@@ -23,8 +23,7 @@ class WpSqlMigrator extends Component
     // Public State
     // -----------------------------------------------------------------------
 
-    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
-    #[Validate(['sqlFile' => 'required|file|mimes:sql,txt|max:102400'])]
+    #[Validate('required|file|mimes:sql,txt|max:102400')]
     public $sqlFile = null;
 
     /** Selected BaleList UUID */
@@ -259,22 +258,13 @@ class WpSqlMigrator extends Component
         }
 
         try {
-            $size = $this->sqlFile->getSize();
-
-            // For large files: increase memory limit.
-            if ($size > 32 * 1024 * 1024) { // > 32 MB
+            // Ensure we have enough memory to handle large strings.
+            if ($this->sqlFile->getSize() > 32 * 1024 * 1024) {
                 ini_set('memory_limit', '1024M');
             }
 
-            // Using get() works for both local and S3 temporary files.
-            $content = $this->sqlFile->get();
-
-            if ($content === false) {
-                $this->fatalError = __('Failed to read the uploaded SQL file. Ensure storage permissions and S3 configurations are correct.');
-                return null;
-            }
-
-            return $content;
+            // Using get() is the most reliable way to read from both Local and S3 in Livewire.
+            return $this->sqlFile->get();
         } catch (\Exception $e) {
             $this->fatalError = __('Failed to read the uploaded SQL file: ') . $e->getMessage();
             return null;
