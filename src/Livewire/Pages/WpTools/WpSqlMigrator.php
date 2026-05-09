@@ -4,6 +4,7 @@ namespace Bale\Core\Livewire\Pages\WpTools;
 
 use Bale\Core\Services\PostCleanerService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -258,13 +259,31 @@ class WpSqlMigrator extends Component
         }
 
         try {
-            // Ensure we have enough memory to handle large strings.
+            // Generate path using the pattern from EditPost reference
+            $extension = $this->sqlFile->getClientOriginalExtension();
+            $fileName = 'wp-migrator-' . uniqid() . '.' . $extension;
+            $finalPath = 'private/' . $fileName;
+
+            // Ensure we have enough memory for the transfer
             if ($this->sqlFile->getSize() > 32 * 1024 * 1024) {
                 ini_set('memory_limit', '1024M');
             }
 
-            // Using get() is the most reliable way to read from both Local and S3 in Livewire.
-            return $this->sqlFile->get();
+            // 1. Upload to S3 using the referenced pattern
+            Storage::disk('s3')->put($finalPath, $this->sqlFile->get());
+
+            // 2. Read contents back from S3
+            $content = Storage::disk('s3')->get($finalPath);
+
+            // 3. Optional: Cleanup the temporary file from S3 'private' folder after reading
+            // Storage::disk('s3')->delete($finalPath);
+
+            if ($content === false) {
+                $this->fatalError = __('Failed to retrieve file content from S3 storage.');
+                return null;
+            }
+
+            return $content;
         } catch (\Exception $e) {
             $this->fatalError = __('Failed to read the uploaded SQL file: ') . $e->getMessage();
             return null;
