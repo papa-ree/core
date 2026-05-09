@@ -77,6 +77,13 @@
             const validFiles = fileArray.filter(file => {
                 const typeOk = acceptedTypes.some(type => {
                     if (type === '*' || type === '*/*') return true;
+                    
+                    // Extension check (e.g. .sql)
+                    if (type.startsWith('.')) {
+                        return file.name.toLowerCase().endsWith(type.toLowerCase());
+                    }
+
+                    // MIME type check (e.g. image/* or application/sql)
                     if (type.endsWith('/*')) return file.type.startsWith(type.replace('/*', '/'));
                     return file.type === type;
                 });
