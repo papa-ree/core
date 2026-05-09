@@ -18,21 +18,6 @@ use Ramsey\Uuid\Uuid;
 class WpSqlMigrator extends Component
 {
     use WithFileUploads;
-    
-    /**
-     * Force Livewire to use the 'local' disk for temporary uploads in this component.
-     * This ensures that SQL files are not uploaded to S3 even if the global default is S3.
-     */
-    public function temporaryFileUploadDisk(): string
-    {
-        return 'local';
-    }
-
-    public function boot()
-    {
-        // Force local disk for the temporary file upload for this request lifecycle
-        config(['livewire.temporary_file_upload.disk' => 'local']);
-    }
 
     // -----------------------------------------------------------------------
     // Public State
@@ -269,38 +254,31 @@ class WpSqlMigrator extends Component
      */
     protected function readSqlFile(): ?string
     {
-        $path = $this->sqlFile->getRealPath();
-        $size = filesize($path);
-
-        // For very large files: increase memory limit and read in one go.
-        // An alternative chunked approach is documented in a comment below.
-        if ($size > 32 * 1024 * 1024) { // > 32 MB
-            ini_set('memory_limit', '512M');
-        }
-
-        /*
-         * ALTERNATIVE CHUNKED APPROACH (for files > 256 MB):
-         *
-         * $handle = fopen($path, 'r');
-         * $buffer = '';
-         * while (!feof($handle)) {
-         *     $buffer .= fread($handle, 8192); // read 8KB at a time
-         * }
-         * fclose($handle);
-         * return $buffer;
-         *
-         * For multi-GB dumps, consider splitting the file externally or using
-         * MySQL's LOAD DATA INFILE instead of parsing PHP strings.
-         */
-
-        $content = @file_get_contents($path);
-
-        if ($content === false) {
-            $this->fatalError = __('Failed to read the uploaded SQL file. Ensure storage permissions are correct.');
+        if (!$this->sqlFile) {
             return null;
         }
 
-        return $content;
+        try {
+            $size = $this->sqlFile->getSize();
+
+            // For large files: increase memory limit.
+            if ($size > 32 * 1024 * 1024) { // > 32 MB
+                ini_set('memory_limit', '1024M');
+            }
+
+            // Using get() works for both local and S3 temporary files.
+            $content = $this->sqlFile->get();
+
+            if ($content === false) {
+                $this->fatalError = __('Failed to read the uploaded SQL file. Ensure storage permissions and S3 configurations are correct.');
+                return null;
+            }
+
+            return $content;
+        } catch (\Exception $e) {
+            $this->fatalError = __('Failed to read the uploaded SQL file: ') . $e->getMessage();
+            return null;
+        }
     }
 
     /**
@@ -411,7 +389,7 @@ class WpSqlMigrator extends Component
             if ($char === "'" && !$escape) {
                 $inStr = !$inStr;
             }
-            
+
             if ($inStr) {
                 continue;
             }
