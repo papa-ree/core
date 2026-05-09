@@ -28,6 +28,12 @@ class WpSqlMigrator extends Component
         return 'local';
     }
 
+    public function boot()
+    {
+        // Force local disk for the temporary file upload for this request lifecycle
+        config(['livewire.temporary_file_upload.disk' => 'local']);
+    }
+
     // -----------------------------------------------------------------------
     // Public State
     // -----------------------------------------------------------------------
