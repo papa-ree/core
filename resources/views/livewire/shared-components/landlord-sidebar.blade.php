@@ -138,6 +138,45 @@
             </nav>
         @endif
 
+        {{-- ========== Frasasti Section ========== --}}
+        @php
+            $frasastiMenus = collect($this->availableMenus)->where('group', 'frasasti');
+        @endphp
+
+        @if($frasastiMenus->count() > 0)
+            <div class="px-4 mb-2 mt-8">
+                <div class="flex items-center gap-2">
+                    <div class="h-px flex-1 bg-slate-700/60"></div>
+                    <span
+                        class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold text-center">{{ __('Ticketing') }}</span>
+                    <div class="h-px flex-1 bg-slate-700/60"></div>
+                </div>
+            </div>
+
+            <nav class="flex flex-col w-full px-3">
+                <ul class="space-y-0.5">
+                    @foreach ($frasastiMenus as $menu)
+                        <li>
+                            <a href="/{{ $menu['url'] }}" wire:navigate.hover class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                                                               text-slate-400 hover:text-white hover:bg-white/8
+                                                               transition-all duration-150 ease-in-out"
+                                wire:current="bg-indigo-600/25 border border-indigo-500/40 text-white shadow-xs">
+
+                                {{-- Icon --}}
+                                <span
+                                    class="shrink-0 w-5 h-5 text-slate-500 group-hover:text-indigo-400 transition-colors duration-150">
+                                    <x-dynamic-component :component="'lucide-' . ($menu['icon'] ?? 'circle')" class="w-5 h-5" />
+                                </span>
+
+                                {{-- Label --}}
+                                <span class="capitalize tracking-wide">{{ $menu['label'] }}</span>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            </nav>
+        @endif
+
         {{-- ========== Data Internet Desa Section ========== --}}
         @if(count($this->availableKosadataMenus) > 0)
             <div class="px-4 mb-2 mt-8">

@@ -60,6 +60,13 @@ class LandlordSidebar extends Component
             ];
         }
 
+        // WP Tools — available to all authenticated landlord users
+        $menu[] = [
+            'label' => __('WP Tools'),
+            'url'   => 'wp-tools/sql-migrator',
+            'icon'  => 'database-zap',
+        ];
+
         // Add Rakaca Menus if package exists
         if (class_exists(\Paparee\Rakaca\RakacaServiceProvider::class)) {
             // Add Rakaca Service Management
@@ -89,6 +96,37 @@ class LandlordSidebar extends Component
                     'url' => 'rakaca/personal-services',
                     'icon' => 'user-check',
                     'group' => 'rakaca',
+                ];
+            }
+        }
+
+        // Add Frasasti Menus if package exists
+        if (class_exists(\Nawasara\Frasasti\FrasastiServiceProvider::class)) {
+            // Overview
+            $menu[] = [
+                'label' => __('Overview'),
+                'url'   => 'frasasti/overview',
+                'icon'  => 'layout-dashboard',
+                'group' => 'frasasti',
+            ];
+
+            // Ticket Management
+            if (auth()->check() && auth()->user()->can('ticket.read')) {
+                $menu[] = [
+                    'label' => __('Tickets'),
+                    'url'   => 'frasasti/tickets',
+                    'icon'  => 'ticket',
+                    'group' => 'frasasti',
+                ];
+            }
+
+            // Contact Management
+            if (auth()->check() && auth()->user()->can('contact.read')) {
+                $menu[] = [
+                    'label' => __('Contacts'),
+                    'url'   => 'frasasti/contacts',
+                    'icon'  => 'users',
+                    'group' => 'frasasti',
                 ];
             }
         }
