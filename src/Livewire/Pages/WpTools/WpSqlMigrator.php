@@ -4,7 +4,6 @@ namespace Bale\Core\Livewire\Pages\WpTools;
 
 use Bale\Core\Services\PostCleanerService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -19,6 +18,18 @@ use Ramsey\Uuid\Uuid;
 class WpSqlMigrator extends Component
 {
     use WithFileUploads;
+
+    /**
+     * Force Livewire to always use the local disk for temporary file uploads.
+     *
+     * This ensures the SQL dump is stored on the server's local filesystem,
+     * regardless of whether the application uses S3 as its default storage.
+     * Pair this with LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK=local in .env on production.
+     */
+    public function temporaryFileUploadDisk(): string
+    {
+        return 'local';
+    }
 
     // -----------------------------------------------------------------------
     // Public State
@@ -252,41 +263,28 @@ class WpSqlMigrator extends Component
     /**
      * Read the uploaded SQL file content.
      *
-     * Reads from the exact same disk Livewire used for the temporary upload —
-     * whether that is the local filesystem or S3 object storage.
+     * Always reads from local disk because temporaryFileUploadDisk() forces
+     * Livewire to store temp uploads locally.
      */
     protected function readSqlFile(): ?string
     {
-        // Resolve the disk Livewire used to store temporary uploads.
-        // This mirrors what Livewire does internally so we read from the right place.
-        $livewireDisk = config('livewire.temporary_file_upload.disk')
-            ?: config('filesystems.default', 'local');
+        $path = $this->sqlFile->getRealPath();
 
-        // getPath() returns the path of the temp file on that disk (e.g. livewire-tmp/xxxx.sql).
-        $tmpPath = $this->sqlFile->getPath() . '/' . $this->sqlFile->getFilename();
-
-        try {
-            $size = Storage::disk($livewireDisk)->size($tmpPath);
-        } catch (\Throwable) {
-            // Fallback: size check failed, continue without memory adjustment.
-            $size = 0;
+        if (!$path || !file_exists($path)) {
+            $this->fatalError = __('Uploaded SQL file could not be located on the server.');
+            return null;
         }
+
+        $size = filesize($path);
 
         if ($size > 32 * 1024 * 1024) {
             ini_set('memory_limit', '512M');
         }
 
-        try {
-            // Read the file content directly from the Livewire temporary disk.
-            // Works for both local (filesystem path) and S3 (object key).
-            $content = Storage::disk($livewireDisk)->get($tmpPath);
-        } catch (\Throwable $e) {
-            $this->fatalError = __('Failed to read the SQL file from storage: ') . $e->getMessage();
-            return null;
-        }
+        $content = @file_get_contents($path);
 
-        if ($content === null || $content === false) {
-            $this->fatalError = __('Failed to read the uploaded SQL file.');
+        if ($content === false) {
+            $this->fatalError = __('Failed to read the uploaded SQL file. Check storage permissions.');
             return null;
         }
 
