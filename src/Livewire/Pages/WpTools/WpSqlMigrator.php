@@ -19,21 +19,13 @@ use Ramsey\Uuid\Uuid;
 class WpSqlMigrator extends Component
 {
     use WithFileUploads;
-    
-    /**
-     * Force Livewire to use the 'local' disk for temporary uploads in this component.
-     * This bypasses the global S3 configuration and avoids CORS issues on production.
-     */
-    public function temporaryFileUploadDisk(): string
-    {
-        return 'local';
-    }
 
     // -----------------------------------------------------------------------
     // Public State
     // -----------------------------------------------------------------------
 
-    #[Validate('required|file|mimes:sql,txt|max:102400')]
+    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
+    #[Validate(['sqlFile' => 'required|file|mimes:sql,txt|max:102400'])]
     public $sqlFile = null;
 
     /** Selected BaleList UUID */
@@ -259,45 +251,43 @@ class WpSqlMigrator extends Component
 
     /**
      * Read the uploaded SQL file content.
-     * Falls back to chunked reading for large files (> 32 MB).
+     *
+     * Works on both local and S3 storage by storing the Livewire temporary upload
+     * to a deterministic path under `private/` via the Storage facade, reading its
+     * contents, then cleaning up the stored file immediately.
      */
     protected function readSqlFile(): ?string
     {
-        if (!$this->sqlFile) {
-            return null;
-        }
+        // Build a unique private path so concurrent uploads don't collide.
+        $fileName = 'wp-migrator-' . md5(uniqid('', true)) . '.sql';
+        $storagePath = 'private/' . $fileName;
 
         try {
-            // Generate path for optional S3 archival (following EditPost pattern)
-            $extension = $this->sqlFile->getClientOriginalExtension();
-            $fileName = 'wp-migrator-' . uniqid() . '.' . $extension;
-            $finalPath = 'private/' . $fileName;
-
-            if ($this->sqlFile->getSize() > 32 * 1024 * 1024) {
-                ini_set('memory_limit', '1024M');
-            }
-
-            // Get content (from local-tmp since we forced local disk)
-            $content = $this->sqlFile->get();
-
-            if ($content === false) {
-                throw new \Exception(__('Failed to retrieve file content.'));
-            }
-
-            // Archive to S3 (Server-to-S3, avoids CORS issues)
-            try {
-                Storage::disk('s3')->put($finalPath, $content);
-            } catch (\Exception $e) {
-                // If S3 archival fails, we still have the content from local upload, 
-                // so we can log it but continue the migration.
-                logger()->error("S3 Archival failed for SQL Migrator: " . $e->getMessage());
-            }
-
-            return $content;
-        } catch (\Exception $e) {
-            $this->fatalError = __('Failed to read the uploaded SQL file: ') . $e->getMessage();
+            // Upload the temporary Livewire file to the configured default disk
+            // (works for both local filesystem and S3 object storage).
+            Storage::put($storagePath, $this->sqlFile->get());
+        } catch (\Throwable $e) {
+            $this->fatalError = __('Failed to store the SQL file: ') . $e->getMessage();
             return null;
         }
+
+        // For very large files, give PHP more room.
+        $size = Storage::size($storagePath);
+        if ($size > 32 * 1024 * 1024) {
+            ini_set('memory_limit', '512M');
+        }
+
+        $content = Storage::get($storagePath);
+
+        // Delete the stored copy immediately — we only need it in memory.
+        Storage::delete($storagePath);
+
+        if ($content === null || $content === false) {
+            $this->fatalError = __('Failed to read the uploaded SQL file.');
+            return null;
+        }
+
+        return $content;
     }
 
     /**
@@ -408,7 +398,7 @@ class WpSqlMigrator extends Component
             if ($char === "'" && !$escape) {
                 $inStr = !$inStr;
             }
-
+            
             if ($inStr) {
                 continue;
             }
