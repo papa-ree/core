@@ -13,7 +13,7 @@ use Bale\Core\Livewire\Pages\RoleManagement\Create as RoleCreate;
 use Bale\Core\Livewire\Pages\RoleManagement\Edit as RoleEdit;
 use Bale\Core\Livewire\Pages\AuthenticationLog\Index as AuthLogIndex;
 use Bale\Core\Livewire\Pages\AuthenticationLog\Edit as AuthLogEdit;
-use Bale\Core\Livewire\Pages\WpTools\WpSqlMigrator;
+use Bale\Core\Livewire\Pages\WpTools\SqlMigrator\Index as SqlMigratorIndex;
 
 use Illuminate\Support\Facades\Route;
 
@@ -53,7 +53,7 @@ Route::middleware(['auth', 'web', 'permission:authentication-log.read'])->group(
 
 // WP Tools
 Route::middleware(['auth', 'web'])->group(function () {
-    Route::get('/wp-tools/sql-migrator', WpSqlMigrator::class)->name('wp-tools.sql-migrator');
+    Route::get('/wp-tools/sql-migrator', SqlMigratorIndex::class)->name('wp-tools.sql-migrator');
 });
 
 
