@@ -13,6 +13,15 @@ class Upload extends Component
 
     public $sqlFile;
 
+    /**
+     * Force Livewire to use the local disk for temporary file uploads.
+     * This bypasses S3 CORS issues when uploading directly from the browser.
+     */
+    public function temporaryFileUploadDisk(): string
+    {
+        return 'local';
+    }
+
     public function updatedSqlFile()
     {
         $this->validate([
