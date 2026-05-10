@@ -19,6 +19,15 @@ use Ramsey\Uuid\Uuid;
 class WpSqlMigrator extends Component
 {
     use WithFileUploads;
+    
+    /**
+     * Force Livewire to use the 'local' disk for temporary uploads in this component.
+     * This bypasses the global S3 configuration and avoids CORS issues on production.
+     */
+    public function temporaryFileUploadDisk(): string
+    {
+        return 'local';
+    }
 
     // -----------------------------------------------------------------------
     // Public State
@@ -259,28 +268,29 @@ class WpSqlMigrator extends Component
         }
 
         try {
-            // Generate path using the pattern from EditPost reference
+            // Generate path for optional S3 archival (following EditPost pattern)
             $extension = $this->sqlFile->getClientOriginalExtension();
             $fileName = 'wp-migrator-' . uniqid() . '.' . $extension;
             $finalPath = 'private/' . $fileName;
 
-            // Ensure we have enough memory for the transfer
             if ($this->sqlFile->getSize() > 32 * 1024 * 1024) {
                 ini_set('memory_limit', '1024M');
             }
 
-            // 1. Upload to S3 using the referenced pattern
-            Storage::disk('s3')->put($finalPath, $this->sqlFile->get());
-
-            // 2. Read contents back from S3
-            $content = Storage::disk('s3')->get($finalPath);
-
-            // 3. Optional: Cleanup the temporary file from S3 'private' folder after reading
-            // Storage::disk('s3')->delete($finalPath);
+            // Get content (from local-tmp since we forced local disk)
+            $content = $this->sqlFile->get();
 
             if ($content === false) {
-                $this->fatalError = __('Failed to retrieve file content from S3 storage.');
-                return null;
+                throw new \Exception(__('Failed to retrieve file content.'));
+            }
+
+            // Archive to S3 (Server-to-S3, avoids CORS issues)
+            try {
+                Storage::disk('s3')->put($finalPath, $content);
+            } catch (\Exception $e) {
+                // If S3 archival fails, we still have the content from local upload, 
+                // so we can log it but continue the migration.
+                logger()->error("S3 Archival failed for SQL Migrator: " . $e->getMessage());
             }
 
             return $content;
