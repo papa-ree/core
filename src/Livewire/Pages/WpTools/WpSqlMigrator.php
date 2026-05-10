@@ -4,6 +4,7 @@ namespace Bale\Core\Livewire\Pages\WpTools;
 
 use Bale\Core\Services\PostCleanerService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -19,25 +20,16 @@ class WpSqlMigrator extends Component
 {
     use WithFileUploads;
 
-    /**
-     * Force Livewire to always use the local disk for temporary file uploads.
-     *
-     * This ensures the SQL dump is stored on the server's local filesystem,
-     * regardless of whether the application uses S3 as its default storage.
-     * Pair this with LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK=local in .env on production.
-     */
-    public function temporaryFileUploadDisk(): string
-    {
-        return 'local';
-    }
-
     // -----------------------------------------------------------------------
     // Public State
     // -----------------------------------------------------------------------
 
     /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
-    #[Validate(['sqlFile' => 'required|file|mimes:sql,txt|max:102400'])]
+    #[Validate(['sqlFile' => 'nullable|file|mimes:sql,txt|max:102400'])]
     public $sqlFile = null;
+
+    /** The filename of the selected dump from S3 */
+    public string $selectedFile = '';
 
     /** Selected BaleList UUID */
     public string $selectedBaleId = '';
@@ -139,6 +131,91 @@ class WpSqlMigrator extends Component
         }
     }
 
+    /**
+     * Triggered automatically when a file is selected.
+     * Directly uploads it to the permanent 'private/wp-sql-dumps' location on S3.
+     */
+    public function updatedSqlFile(): void
+    {
+        $this->validateOnly('sqlFile');
+
+        try {
+            $originalName = $this->sqlFile->getClientOriginalName();
+            $extension = $this->sqlFile->getClientOriginalExtension();
+            
+            // Cleanup name for storage: slugify but keep extension
+            $baseName = pathinfo($originalName, PATHINFO_FILENAME);
+            $safeName = Str::slug($baseName) . '-' . uniqid() . '.' . $extension;
+            
+            $finalPath = 'private/wp-sql-dumps/' . $safeName;
+
+            // Upload directly to S3 disk as requested
+            Storage::disk('s3')->put($finalPath, $this->sqlFile->get());
+
+            $this->sqlFile = null; // Clear temp upload state
+            $this->selectedFile = $safeName; // Auto-select the newly uploaded file
+            
+            $this->dispatch('toast', message: __('File uploaded successfully to S3.'), type: 'success');
+        } catch (\Throwable $e) {
+            $this->fatalError = __('Upload failed: ') . $e->getMessage();
+        }
+    }
+
+    /**
+     * Delete a file from S3 storage.
+     */
+    public function deleteFile(string $filename): void
+    {
+        try {
+            Storage::disk('s3')->delete('private/wp-sql-dumps/' . $filename);
+            
+            if ($this->selectedFile === $filename) {
+                $this->selectedFile = '';
+            }
+
+            $this->dispatch('toast', message: __('File deleted.'), type: 'success');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: __('Failed to delete file: ') . $e->getMessage(), type: 'error');
+        }
+    }
+
+    /**
+     * Helper to list all dumps currently stored in S3.
+     */
+    public function getStoredFiles(): array
+    {
+        try {
+            $files = Storage::disk('s3')->files('private/wp-sql-dumps');
+            $data = [];
+
+            foreach ($files as $file) {
+                $data[] = [
+                    'name' => basename($file),
+                    'path' => $file,
+                    'size' => $this->formatBytes(Storage::disk('s3')->size($file)),
+                    'date' => date('Y-m-d H:i:s', Storage::disk('s3')->lastModified($file)),
+                ];
+            }
+
+            // Sort by date descending
+            usort($data, fn($a, $b) => strcmp($b['date'], $a['date']));
+
+            return $data;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    private function formatBytes($bytes, $precision = 2): string
+    {
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $bytes = max($bytes, 0);
+        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+        $pow = min($pow, count($units) - 1);
+        $bytes /= pow(1024, $pow);
+        return round($bytes, $precision) . ' ' . $units[$pow];
+    }
+
     // -----------------------------------------------------------------------
     // Actions
     // -----------------------------------------------------------------------
@@ -149,7 +226,11 @@ class WpSqlMigrator extends Component
     public function import(): void
     {
         $this->checkAccess();
-        $this->validate();
+        
+        if (empty($this->selectedFile)) {
+            $this->dispatch('toast', message: __('Please select a file from the list first.'), type: 'error');
+            return;
+        }
 
         $this->reset(['isDone', 'importedCount', 'skippedCount', 'filteredCount', 'totalFoundCount', 'importErrors', 'fatalError']);
         $this->isProcessing = true;
@@ -261,27 +342,24 @@ class WpSqlMigrator extends Component
     // -----------------------------------------------------------------------
 
     /**
-     * Read the uploaded SQL file content.
-     *
-     * Always reads from local disk because temporaryFileUploadDisk() forces
-     * Livewire to store temp uploads locally.
+     * Read the SQL file content from S3.
      */
     protected function readSqlFile(): ?string
     {
-        $path = $this->sqlFile->getRealPath();
+        $path = 'private/wp-sql-dumps/' . $this->selectedFile;
 
-        if (!$path || !file_exists($path)) {
-            $this->fatalError = __('Uploaded SQL file could not be located on the server.');
+        if (!Storage::disk('s3')->exists($path)) {
+            $this->fatalError = __('The selected SQL file no longer exists in storage.');
             return null;
         }
 
-        $size = filesize($path);
+        $size = Storage::disk('s3')->size($path);
 
         if ($size > 32 * 1024 * 1024) {
             ini_set('memory_limit', '512M');
         }
 
-        $content = @file_get_contents($path);
+        $content = Storage::disk('s3')->get($path);
 
         if ($content === false) {
             $this->fatalError = __('Failed to read the uploaded SQL file. Check storage permissions.');
@@ -550,6 +628,7 @@ class WpSqlMigrator extends Component
     {
         return view('core::livewire.pages.wp-tools.wp-sql-migrator', [
             'baleLists' => $this->getBaleListsProperty(),
+            'storedFiles' => $this->getStoredFiles(),
         ]);
     }
 }

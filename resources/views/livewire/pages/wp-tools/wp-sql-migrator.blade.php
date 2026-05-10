@@ -96,10 +96,122 @@
         </div>
 
         {{-- Form Body --}}
-        <div class="p-6 md:p-8 space-y-8">
+        <div class="p-6 md:p-8 space-y-10">
 
-            {{-- ── Fatal Error Alert ─────────────────────────────────── --}}
-            @if($fatalError)
+            {{-- ── Step 0: Stored SQL Dumps (The List) ───────────────── --}}
+            <div>
+                <div class="flex items-center justify-between mb-4">
+                    <label class="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                        <span class="inline-flex items-center gap-1.5">
+                            <x-lucide-list class="w-4 h-4 text-indigo-500" />
+                            {{ __('Stored SQL Dumps in S3') }}
+                        </span>
+                    </label>
+                </div>
+
+                @if(count($storedFiles) > 0)
+                    <div class="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-xl">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-900/50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">{{ __('Filename') }}</th>
+                                    <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">{{ __('Size') }}</th>
+                                    <th class="px-4 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">{{ __('Uploaded At') }}</th>
+                                    <th class="px-4 py-3 text-right text-[10px] font-bold text-gray-500 uppercase tracking-wider">{{ __('Action') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                @foreach($storedFiles as $file)
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors {{ $selectedFile === $file['name'] ? 'bg-indigo-50/50 dark:bg-indigo-900/20' : '' }}">
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="flex items-center gap-2">
+                                                @if($selectedFile === $file['name'])
+                                                    <x-lucide-check-circle-2 class="w-4 h-4 text-emerald-500" />
+                                                @else
+                                                    <x-lucide-file-text class="w-4 h-4 text-gray-400" />
+                                                @endif
+                                                <span class="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs" title="{{ $file['name'] }}">
+                                                    {{ $file['name'] }}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                                            {{ $file['size'] }}
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                                            {{ \Carbon\Carbon::parse($file['date'])->diffForHumans() }}
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-right text-sm">
+                                            <div class="flex items-center justify-end gap-2">
+                                                @if($selectedFile !== $file['name'])
+                                                    <button 
+                                                        wire:click="$set('selectedFile', '{{ $file['name'] }}')"
+                                                        class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                        title="{{ __('Select for Migration') }}"
+                                                    >
+                                                        <x-lucide-mouse-pointer-click class="w-4 h-4" />
+                                                    </button>
+                                                @endif
+                                                
+                                                <button 
+                                                    wire:confirm="{{ __('Are you sure you want to delete this dump from S3?') }}"
+                                                    wire:click="deleteFile('{{ $file['name'] }}')"
+                                                    class="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="{{ __('Delete File') }}"
+                                                >
+                                                    <x-lucide-trash-2 class="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <div class="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl bg-gray-50/50 dark:bg-gray-900/20">
+                        <x-lucide-folder-open class="w-10 h-10 text-gray-300 mb-2" />
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ __('No SQL dumps found in storage. Upload one below.') }}</p>
+                    </div>
+                @endif
+            </div>
+
+            {{-- ── Step 1: Upload New SQL File ──────────────────────── --}}
+            <div class="pt-6 border-t border-gray-100 dark:border-gray-700">
+                <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                    <span class="inline-flex items-center gap-1.5">
+                        <x-lucide-plus-circle class="w-4 h-4 text-emerald-500" />
+                        {{ __('Upload New SQL Dump to S3') }}
+                    </span>
+                </label>
+
+                <div class="max-w-xl">
+                    <x-core::upload-zone
+                        wire:model.live="sqlFile"
+                        accept="application/sql,.sql,text/plain,.txt"
+                        :maxSize="102400"
+                        :label="__('Choose file to store in S3')"
+                        :hint="__('Max 100 MB. Files are stored in private/wp-sql-dumps/ on S3.')"
+                    />
+                </div>
+
+                @error('sqlFile')
+                    <p class="mt-1.5 text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
+                        <x-lucide-alert-circle class="w-3.5 h-3.5" />
+                        {{ $message }}
+                    </p>
+                @enderror
+            </div>
+
+            {{-- ── Step 2: Configuration ────────────────────────────── --}}
+            <div class="pt-6 border-t border-gray-100 dark:border-gray-700 space-y-8">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="size-6 bg-indigo-500 rounded-full flex items-center justify-center text-[10px] text-white font-bold">2</div>
+                    <h4 class="font-bold text-gray-900 dark:text-white uppercase tracking-wider text-xs">{{ __('Migration Configuration') }}</h4>
+                </div>
+
+                {{-- Fatal Error Alert --}}
+                @if($fatalError)
                 <div class="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl"
                     x-transition:enter="transition ease-out duration-300"
                     x-transition:enter-start="opacity-0 -translate-y-1"
@@ -172,109 +284,94 @@
 
                     {{-- Reset Button --}}
                     <div class="mt-5 flex justify-end">
-                        <button
+                        <x-core::button
                             wire:click="resetForm"
-                            type="button"
-                            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
-                                   text-sm font-semibold text-gray-700 dark:text-gray-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400
-                                   transition-all duration-200 shadow-sm"
+                            variant="secondary"
+                            :label="__('Migrate Another File')"
                         >
-                            <x-lucide-refresh-cw class="w-4 h-4" />
-                            {{ __('Migrate Another File') }}
-                        </button>
+                            <x-slot:icon>
+                                <x-lucide-refresh-cw class="w-4 h-4" />
+                            </x-slot:icon>
+                        </x-core::button>
                     </div>
                 </div>
             @else
-                {{-- ── Step 1: Select Destination Bale ──────────────── --}}
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5" for="bale-select">
-                        <span class="inline-flex items-center gap-1.5">
-                            <x-lucide-server class="w-4 h-4 text-indigo-500" />
-                            {{ __('Destination Bale (Tenant Database)') }}
-                        </span>
-                    </label>
-
-                    <x-core::select-dropdown
-                        :items="$baleLists"
-                        model="selectedBaleId"
-                        labelField="display_name"
-                        valueField="id"
-                        :placeholder="__('Select a Bale tenant')"
-                    />
-
-                    @error('selectedBaleId')
-                        <p class="mt-1.5 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
-                    @enderror
-
-                    @if(empty($baleLists))
-                        <p class="mt-2 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                            <x-lucide-alert-circle class="w-3.5 h-3.5" />
-                            {{ __('No active Bale tenants found. Please create one in Bale List management first.') }}
-                        </p>
-                    @endif
                 </div>
 
-                {{-- ── Step 1.5: Select Author (Tenant Users) ────────── --}}
-                @if($selectedBaleId && !empty($tenantUsers))
-                    <div x-transition:enter="transition ease-out duration-300"
-                         x-transition:enter-start="opacity-0 -translate-y-2"
-                         x-transition:enter-end="opacity-100 translate-y-0">
-                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5" for="author-select">
+                {{-- Select Destination Bale --}}
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5" for="bale-select">
                             <span class="inline-flex items-center gap-1.5">
-                                <x-lucide-user-check class="w-4 h-4 text-emerald-500" />
-                                {{ __('Assign Post Author') }}
+                                <x-lucide-server class="w-4 h-4 text-indigo-500" />
+                                {{ __('Destination Bale') }}
                             </span>
                         </label>
 
                         <x-core::select-dropdown
-                            :items="$tenantUsers"
-                            model="selectedAuthorId"
-                            labelField="name"
+                            :items="$baleLists"
+                            model="selectedBaleId"
+                            labelField="display_name"
                             valueField="id"
-                            :placeholder="__('Choose an author from this Bale')"
+                            :placeholder="__('Select a Bale tenant')"
                         />
 
-                        @error('selectedAuthorId')
+                        @error('selectedBaleId')
                             <p class="mt-1.5 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                         @enderror
-
-                        <p class="mt-2 text-[10px] text-gray-500 uppercase tracking-widest">
-                            {{ __('All imported posts will be assigned to this user.') }}
-                        </p>
                     </div>
-                @elseif($selectedBaleId && empty($tenantUsers))
-                    <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
-                        <p class="text-xs text-red-700 dark:text-red-400 flex items-center gap-2">
-                            <x-lucide-user-x class="w-4 h-4" />
-                            {{ __('No users found in the target Bale database. Please create a user in that Bale first.') }}
-                        </p>
+
+                    {{-- Select Author --}}
+                    @if($selectedBaleId && !empty($tenantUsers))
+                        <div x-transition:enter="transition ease-out duration-300"
+                             x-transition:enter-start="opacity-0 -translate-y-2"
+                             x-transition:enter-end="opacity-100 translate-y-0">
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5" for="author-select">
+                                <span class="inline-flex items-center gap-1.5">
+                                    <x-lucide-user-check class="w-4 h-4 text-emerald-500" />
+                                    {{ __('Assign Post Author') }}
+                                </span>
+                            </label>
+
+                            <x-core::select-dropdown
+                                :items="$tenantUsers"
+                                model="selectedAuthorId"
+                                labelField="name"
+                                valueField="id"
+                                :placeholder="__('Choose an author')"
+                            />
+
+                            @error('selectedAuthorId')
+                                <p class="mt-1.5 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    @elseif($selectedBaleId && empty($tenantUsers))
+                        <div class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl self-end">
+                            <p class="text-[10px] text-red-700 dark:text-red-400 flex items-center gap-2">
+                                <x-lucide-user-x class="w-4 h-4" />
+                                {{ __('No users found in target Bale.') }}
+                            </p>
+                        </div>
+                    @endif
+                </div>
+
+                {{-- Step 2: Selected File Info --}}
+                @if($selectedFile)
+                    <div class="p-4 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900 rounded-xl flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-indigo-500 rounded-lg">
+                                <x-lucide-file-check class="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider">{{ __('Selected for Import') }}</p>
+                                <p class="text-sm font-semibold text-indigo-700 dark:text-indigo-400 truncate max-w-sm">{{ $selectedFile }}</p>
+                            </div>
+                        </div>
+                        <button wire:click="$set('selectedFile', '')" class="text-xs text-gray-400 hover:text-red-500 transition-colors uppercase font-bold">
+                            {{ __('Deselect') }}
+                        </button>
                     </div>
                 @endif
-
-                {{-- ── Step 2: Upload SQL File ───────────────────────── --}}
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                        <span class="inline-flex items-center gap-1.5">
-                            <x-lucide-file-code-2 class="w-4 h-4 text-purple-500" />
-                            {{ __('WordPress SQL Dump File') }}
-                        </span>
-                    </label>
-
-                    <x-core::upload-zone
-                        wire:model.live="sqlFile"
-                        accept="application/sql,.sql,text/plain,.txt"
-                        :maxSize="102400"
-                        :label="__('Drop your .sql dump here or click to browse')"
-                        :hint="__('Accepts .sql or .txt files — max 100 MB. For larger files, split with mysqldump --where.')"
-                    />
-
-                    @error('sqlFile')
-                        <p class="mt-1.5 text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
-                            <x-lucide-alert-circle class="w-3.5 h-3.5" />
-                            {{ $message }}
-                        </p>
-                    @enderror
-                </div>
 
                 {{-- ── Advanced Settings (Collapsible) ──────────────── --}}
                 <div>
@@ -340,32 +437,26 @@
                         {{ __('Data is written directly to the tenant database. No data is stored locally.') }}
                     </p>
 
-                    <button
+                    <x-core::button
                         wire:click="import"
                         wire:loading.attr="disabled"
                         wire:target="import"
-                        id="wp-import-btn"
-                        type="button"
-                        class="inline-flex items-center gap-2.5 px-7 py-3 rounded-lg font-semibold text-sm text-white
-                               bg-linear-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700
-                               shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300
-                               disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0"
+                        variant="primary"
+                        :label="__('Start Import')"
+                        @if(empty($selectedFile)) disabled @endif
                     >
-                        {{-- Loading state --}}
-                        <span wire:loading wire:target="import" class="inline-flex items-center gap-2">
-                            <svg class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                            </svg>
-                            {{ __('Processing...') }}
-                        </span>
-
-                        {{-- Default state --}}
-                        <span wire:loading.remove wire:target="import" class="inline-flex items-center gap-2">
-                            <x-lucide-play class="w-4 h-4" />
-                            {{ __('Start Import') }}
-                        </span>
-                    </button>
+                        <x-slot:icon>
+                            <span wire:loading wire:target="import">
+                                <svg class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                            </span>
+                            <span wire:loading.remove wire:target="import">
+                                <x-lucide-play class="w-4 h-4" />
+                            </span>
+                        </x-slot:icon>
+                    </x-core::button>
                 </div>
             @endif
         </div>

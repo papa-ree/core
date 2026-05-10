@@ -106,7 +106,12 @@ new class extends Component {
         $builder  = $this->connection
             ? $instance->setConnection($this->connection)->newQuery()
             : $instance->newQuery();
-        $builder->where($instance->getKeyName(), $id)->delete();
+            
+        $model = $builder->where($instance->getKeyName(), $id)->first();
+        if ($model) {
+            $model->delete();
+        }
+        
         unset($this->records);
         $this->dispatch('toast', message: 'Item deleted successfully!', type: 'success');
     }
