@@ -252,35 +252,38 @@ class WpSqlMigrator extends Component
     /**
      * Read the uploaded SQL file content.
      *
-     * Works on both local and S3 storage by storing the Livewire temporary upload
-     * to a deterministic path under `private/` via the Storage facade, reading its
-     * contents, then cleaning up the stored file immediately.
+     * Reads from the exact same disk Livewire used for the temporary upload —
+     * whether that is the local filesystem or S3 object storage.
      */
     protected function readSqlFile(): ?string
     {
-        // Build a unique private path so concurrent uploads don't collide.
-        $fileName = 'wp-migrator-' . md5(uniqid('', true)) . '.sql';
-        $storagePath = 'private/' . $fileName;
+        // Resolve the disk Livewire used to store temporary uploads.
+        // This mirrors what Livewire does internally so we read from the right place.
+        $livewireDisk = config('livewire.temporary_file_upload.disk')
+            ?: config('filesystems.default', 'local');
+
+        // getPath() returns the path of the temp file on that disk (e.g. livewire-tmp/xxxx.sql).
+        $tmpPath = $this->sqlFile->getPath() . '/' . $this->sqlFile->getFilename();
 
         try {
-            // Upload the temporary Livewire file to the configured default disk
-            // (works for both local filesystem and S3 object storage).
-            Storage::put($storagePath, $this->sqlFile->get());
-        } catch (\Throwable $e) {
-            $this->fatalError = __('Failed to store the SQL file: ') . $e->getMessage();
-            return null;
+            $size = Storage::disk($livewireDisk)->size($tmpPath);
+        } catch (\Throwable) {
+            // Fallback: size check failed, continue without memory adjustment.
+            $size = 0;
         }
 
-        // For very large files, give PHP more room.
-        $size = Storage::size($storagePath);
         if ($size > 32 * 1024 * 1024) {
             ini_set('memory_limit', '512M');
         }
 
-        $content = Storage::get($storagePath);
-
-        // Delete the stored copy immediately — we only need it in memory.
-        Storage::delete($storagePath);
+        try {
+            // Read the file content directly from the Livewire temporary disk.
+            // Works for both local (filesystem path) and S3 (object key).
+            $content = Storage::disk($livewireDisk)->get($tmpPath);
+        } catch (\Throwable $e) {
+            $this->fatalError = __('Failed to read the SQL file from storage: ') . $e->getMessage();
+            return null;
+        }
 
         if ($content === null || $content === false) {
             $this->fatalError = __('Failed to read the uploaded SQL file.');
