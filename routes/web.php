@@ -14,7 +14,6 @@ use Bale\Core\Livewire\Pages\RoleManagement\Edit as RoleEdit;
 use Bale\Core\Livewire\Pages\AuthenticationLog\Index as AuthLogIndex;
 use Bale\Core\Livewire\Pages\AuthenticationLog\Edit as AuthLogEdit;
 use Bale\Core\Livewire\Pages\WpTools\SqlMigrator\Index as SqlMigratorIndex;
-
 use Illuminate\Support\Facades\Route;
 
 Route::middleware([
