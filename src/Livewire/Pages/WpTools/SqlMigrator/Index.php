@@ -268,32 +268,25 @@ class Index extends Component
      */
     protected function readSqlFile(): ?string
     {
-        if (app()->isProduction()) {
-            // On production the temp file is stored on S3.
-            $path = $this->sqlFile->getRealPath(); // still valid in the same request
-        } else {
-            $path = $this->sqlFile->getRealPath();
-        }
+        try {
+            $size = $this->sqlFile->getSize();
 
-        if (!$path || !file_exists($path)) {
-            $this->fatalError = __('Uploaded SQL file could not be located on the server.');
+            if ($size > 32 * 1024 * 1024) {
+                ini_set('memory_limit', '512M');
+            }
+
+            $content = $this->sqlFile->get();
+
+            if ($content === false || $content === null) {
+                $this->fatalError = __('Failed to read the uploaded SQL file. Check storage permissions.');
+                return null;
+            }
+
+            return $content;
+        } catch (\Throwable $e) {
+            $this->fatalError = __('Failed to read the uploaded SQL file: ') . $e->getMessage();
             return null;
         }
-
-        $size = filesize($path);
-
-        if ($size > 32 * 1024 * 1024) {
-            ini_set('memory_limit', '512M');
-        }
-
-        $content = @file_get_contents($path);
-
-        if ($content === false) {
-            $this->fatalError = __('Failed to read the uploaded SQL file. Check storage permissions.');
-            return null;
-        }
-
-        return $content;
     }
 
     /**
