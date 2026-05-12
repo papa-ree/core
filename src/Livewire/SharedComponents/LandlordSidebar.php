@@ -61,13 +61,11 @@ class LandlordSidebar extends Component
         }
 
         // WP Tools — available to all authenticated landlord users
-        if (app()->isLocal()) {
-            $menu[] = [
-                'label' => __('WP Tools'),
-                'url' => 'wp-tools/sql-migrator',
-                'icon' => 'database-zap',
-            ];
-        }
+        $menu[] = [
+            'label' => __('WP Tools'),
+            'url' => 'wp-tools/sql-migrator',
+            'icon' => 'database-zap',
+        ];
 
         // Add Rakaca Menus if package exists
         if (class_exists(\Paparee\Rakaca\RakacaServiceProvider::class)) {
