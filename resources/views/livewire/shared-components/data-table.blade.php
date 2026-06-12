@@ -116,6 +116,12 @@ new class extends Component {
         $this->dispatch('toast', message: 'Item deleted successfully!', type: 'success');
     }
 
+    #[On('refresh')]
+    public function refresh(): void
+    {
+        unset($this->records);
+    }
+
     #[Computed]
     public function records()
     {
