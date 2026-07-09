@@ -14,7 +14,7 @@ class MediaController
         // Bersihkan path dari karakter null byte yang mungkin terselip
         $path = str_replace(chr(0), '', $path);
 
-        $disk = Storage::disk('s3');
+        $disk = Storage::disk(app()->isProduction() ? 's3' : 'public');
 
         try {
             // Langsung coba baca stream untuk mengurangi round-trip ke S3

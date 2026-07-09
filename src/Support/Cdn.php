@@ -71,15 +71,25 @@ class Cdn
     {
         $path = ltrim($path, '/');
 
-        if (!static::enabled() || !static::baseUrl()) {
-            return static::fallback($path);
-        }
-
         $orgSlug = static::organizationSlug();
 
         // Jika path diawali dengan organization slug, hapus agar tidak double
         if ($orgSlug && Str::startsWith($path, $orgSlug . '/')) {
             $path = Str::after($path, $orgSlug . '/');
+        }
+
+        if (!app()->isProduction()) {
+            $urlPath = 'media/';
+            if (!Str::startsWith($path, 'shared/') && $orgSlug) {
+                $urlPath .= $orgSlug . '/';
+            }
+            $urlPath .= $path;
+
+            return asset($urlPath);
+        }
+
+        if (!static::enabled() || !static::baseUrl()) {
+            return static::fallback($path);
         }
 
         $segments = [
