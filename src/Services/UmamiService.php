@@ -68,9 +68,10 @@ class UmamiService
      * Ambil statistik ringkasan dari Umami (total visitors, pageviews, bounce rate, dll).
      *
      * @param  int  $days  Jumlah hari terakhir yang ingin diambil datanya
+     * @param  string|null  $url  URL path filter (misal: /loker/my-slug)
      * @return array|null  Null jika tidak dikonfigurasi atau Umami tidak tersedia
      */
-    public function getStats(int $days = 7): ?array
+    public function getStats(int $days = 7, ?string $url = null): ?array
     {
         $config = $this->getAnalyticsConfig();
 
@@ -83,18 +84,24 @@ class UmamiService
             return null;
         }
 
-        $cacheKey = "umami_stats_{$config->bale_id}_{$days}d";
+        $cacheKey = "umami_stats_{$config->bale_id}_{$days}d" . ($url ? "_" . md5($url) : "");
         $cacheStore = $this->getTenantCacheStore();
 
-        return $cacheStore->remember($cacheKey, $this->cacheTtl, function () use ($config, $days) {
+        return $cacheStore->remember($cacheKey, $this->cacheTtl, function () use ($config, $days, $url) {
             [$startAt, $endAt] = $this->getDateRange($days);
 
             try {
+                $params = [
+                    'startAt' => $startAt,
+                    'endAt' => $endAt,
+                ];
+
+                if ($url) {
+                    $params['url'] = $url;
+                }
+
                 $response = $this->httpClient()
-                    ->get("{$this->baseUrl}/api/websites/{$config->website_id}/stats", [
-                        'startAt' => $startAt,
-                        'endAt' => $endAt,
-                    ]);
+                    ->get("{$this->baseUrl}/api/websites/{$config->website_id}/stats", $params);
 
                 if ($response->failed()) {
                     Log::error('[UmamiService] getStats failed', [
@@ -118,9 +125,10 @@ class UmamiService
      * Ambil data pageviews per hari dari Umami (untuk chart).
      *
      * @param  int  $days  Jumlah hari terakhir
+     * @param  string|null  $url  URL path filter (misal: /loker/my-slug)
      * @return array|null  Null jika tidak dikonfigurasi atau Umami tidak tersedia
      */
-    public function getPageviews(int $days = 7): ?array
+    public function getPageviews(int $days = 7, ?string $url = null): ?array
     {
         $config = $this->getAnalyticsConfig();
 
@@ -133,20 +141,26 @@ class UmamiService
             return null;
         }
 
-        $cacheKey = "umami_pageviews_{$config->bale_id}_{$days}d";
+        $cacheKey = "umami_pageviews_{$config->bale_id}_{$days}d" . ($url ? "_" . md5($url) : "");
         $cacheStore = $this->getTenantCacheStore();
 
-        return $cacheStore->remember($cacheKey, $this->cacheTtl, function () use ($config, $days) {
+        return $cacheStore->remember($cacheKey, $this->cacheTtl, function () use ($config, $days, $url) {
             [$startAt, $endAt] = $this->getDateRange($days);
 
             try {
+                $params = [
+                    'startAt' => $startAt,
+                    'endAt' => $endAt,
+                    'unit' => 'day',
+                    'timezone' => $this->timezone,
+                ];
+
+                if ($url) {
+                    $params['url'] = $url;
+                }
+
                 $response = $this->httpClient()
-                    ->get("{$this->baseUrl}/api/websites/{$config->website_id}/pageviews", [
-                        'startAt' => $startAt,
-                        'endAt' => $endAt,
-                        'unit' => 'day',
-                        'timezone' => $this->timezone,
-                    ]);
+                    ->get("{$this->baseUrl}/api/websites/{$config->website_id}/pageviews", $params);
 
                 if ($response->failed()) {
                     Log::error('[UmamiService] getPageviews failed', [
