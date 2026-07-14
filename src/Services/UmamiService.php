@@ -71,7 +71,7 @@ class UmamiService
      * @param  string|null  $url  URL path filter (misal: /loker/my-slug)
      * @return array|null  Null jika tidak dikonfigurasi atau Umami tidak tersedia
      */
-    public function getStats(int $days = 7, ?string $url = null): ?array
+    public function getStats($days = 7, ?string $url = null): ?array
     {
         $config = $this->getAnalyticsConfig();
 
@@ -84,7 +84,8 @@ class UmamiService
             return null;
         }
 
-        $cacheKey = "umami_stats_{$config->bale_id}_{$days}d" . ($url ? "_" . md5($url) : "");
+        $cacheKeyString = is_array($days) ? implode('_', $days) : $days;
+        $cacheKey = "umami_stats_{$config->bale_id}_{$cacheKeyString}" . ($url ? "_" . md5($url) : "");
         $cacheStore = $this->getTenantCacheStore();
 
         return $cacheStore->remember($cacheKey, $this->cacheTtl, function () use ($config, $days, $url) {
@@ -98,6 +99,7 @@ class UmamiService
 
                 if ($url) {
                     $params['url'] = $url;
+                    $params['path'] = $url;
                 }
 
                 $response = $this->httpClient()
@@ -124,11 +126,11 @@ class UmamiService
     /**
      * Ambil data pageviews per hari dari Umami (untuk chart).
      *
-     * @param  int  $days  Jumlah hari terakhir
+     * @param  mixed  $days  Jumlah hari terakhir (int) atau array [$startAt, $endAt]
      * @param  string|null  $url  URL path filter (misal: /loker/my-slug)
      * @return array|null  Null jika tidak dikonfigurasi atau Umami tidak tersedia
      */
-    public function getPageviews(int $days = 7, ?string $url = null): ?array
+    public function getPageviews($days = 7, ?string $url = null): ?array
     {
         $config = $this->getAnalyticsConfig();
 
@@ -141,7 +143,8 @@ class UmamiService
             return null;
         }
 
-        $cacheKey = "umami_pageviews_{$config->bale_id}_{$days}d" . ($url ? "_" . md5($url) : "");
+        $cacheKeyString = is_array($days) ? implode('_', $days) : $days;
+        $cacheKey = "umami_pageviews_{$config->bale_id}_{$cacheKeyString}" . ($url ? "_" . md5($url) : "");
         $cacheStore = $this->getTenantCacheStore();
 
         return $cacheStore->remember($cacheKey, $this->cacheTtl, function () use ($config, $days, $url) {
@@ -157,6 +160,7 @@ class UmamiService
 
                 if ($url) {
                     $params['url'] = $url;
+                    $params['path'] = $url;
                 }
 
                 $response = $this->httpClient()
@@ -173,6 +177,66 @@ class UmamiService
                 return $response->json();
             } catch (\Throwable $e) {
                 Log::error('[UmamiService] getPageviews exception', [
+                    'message' => $e->getMessage(),
+                ]);
+                return null;
+            }
+        });
+    }
+
+
+    /**
+     * Ambil URL metrics dari Umami (total pageviews per URL path).
+     *
+     * Endpoint /api/websites/{id}/metrics?type=url adalah satu-satunya endpoint
+     * yang secara andal memberikan data terpisah per URL path.
+     * Endpoint stats & pageviews dengan filter `url` seringkali diabaikan oleh Umami.
+     *
+     * Response: [{x: '/jobs/slug', y: 9}, {x: '/jobs/other', y: 3}, ...]
+     *
+     * @param  int  $days   Jumlah hari terakhir
+     * @param  int  $limit  Batas jumlah URL (default 500)
+     * @return array|null
+     */
+    public function getUrlMetrics(int $days = 30, int $limit = 500): ?array
+    {
+        $config = $this->getAnalyticsConfig();
+
+        if (!$config) {
+            return null;
+        }
+
+        if (empty($this->baseUrl) || empty($this->apiKey)) {
+            Log::warning('[UmamiService] Konfigurasi Umami tidak lengkap (UMAMI_URL / UMAMI_API_KEY).');
+            return null;
+        }
+
+        $cacheKey = "umami_url_metrics_{$config->bale_id}_{$days}d_lmt{$limit}";
+        $cacheStore = $this->getTenantCacheStore();
+
+        return $cacheStore->remember($cacheKey, $this->cacheTtl, function () use ($config, $days, $limit) {
+            [$startAt, $endAt] = $this->getDateRange($days);
+
+            try {
+                $response = $this->httpClient()
+                    ->get("{$this->baseUrl}/api/websites/{$config->website_id}/metrics", [
+                        'startAt' => $startAt,
+                        'endAt'   => $endAt,
+                        'type'    => 'url',
+                        'limit'   => $limit,
+                    ]);
+
+                if ($response->failed()) {
+                    Log::error('[UmamiService] getUrlMetrics failed', [
+                        'status' => $response->status(),
+                        'body'   => $response->body(),
+                    ]);
+                    return null;
+                }
+
+                return $response->json();
+            } catch (\Throwable $e) {
+                Log::error('[UmamiService] getUrlMetrics exception', [
                     'message' => $e->getMessage(),
                 ]);
                 return null;
@@ -258,11 +322,14 @@ class UmamiService
      *
      * @return array{0: int, 1: int}
      */
-    protected function getDateRange(int $days): array
+    protected function getDateRange($days): array
     {
+        if (is_array($days)) {
+            return $days;
+        }
         $now = now($this->timezone);
         $endAt = $now->copy()->endOfDay()->getTimestampMs();
-        $startAt = $now->copy()->subDays($days - 1)->startOfDay()->getTimestampMs();
+        $startAt = $now->copy()->subDays((int)$days - 1)->startOfDay()->getTimestampMs();
 
         return [$startAt, $endAt];
     }
