@@ -3,9 +3,10 @@
 namespace Bale\Core\Livewire\Pages\UserManagement;
 
 use App\Models\User;
-use Livewire\Component;
-use Livewire\Attributes\{Layout, Title};
 use Illuminate\Support\Facades\Hash;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
+use Livewire\Component;
 
 #[Layout('core::layouts.app')]
 #[Title('Create User')]
@@ -13,22 +14,26 @@ class Create extends Component
 {
     // Form fields
     public $name = '';
+
     public $username = '';
+
     public $email = '';
+
     public $password = '';
+
     public $password_confirmation = '';
 
     // Permission check on mount
     public function mount()
     {
-        if (!auth()->user()->can('user-management.create')) {
+        if (! auth()->user()->can('user-management.create')) {
             abort(403, 'Unauthorized action.');
         }
     }
 
     public function render()
     {
-        if (!auth()->user()->can('user-management.create')) {
+        if (! auth()->user()->can('user-management.create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -37,7 +42,7 @@ class Create extends Component
 
     public function createUser()
     {
-        if (!auth()->user()->can('user-management.create')) {
+        if (! auth()->user()->can('user-management.create')) {
             abort(403, 'Unauthorized action.');
         }
 

@@ -3,9 +3,10 @@
 namespace Bale\Core\Livewire\Pages\AuthenticationLog;
 
 use Bale\Core\Models\AuthenticationLog;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
+use Livewire\Attributes\Title;
 use Livewire\Component;
-use Livewire\WithPagination;
-use Livewire\Attributes\{Layout, Title, Computed, On};
 
 #[Layout('core::layouts.app')]
 #[Title('Authentication Log')]
@@ -15,7 +16,7 @@ class Index extends Component
     public function mount()
     {
         // Check permission
-        if (!auth()->user()->can('authentication-log.read')) {
+        if (! auth()->user()->can('authentication-log.read')) {
             abort(403, 'Unauthorized action.');
         }
     }
@@ -23,7 +24,7 @@ class Index extends Component
     public function render()
     {
         // Check permission
-        if (!auth()->user()->can('authentication-log.read')) {
+        if (! auth()->user()->can('authentication-log.read')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -34,7 +35,7 @@ class Index extends Component
     public function deleteLog($id)
     {
         // Check permission
-        if (!auth()->user()->can('authentication-log.delete')) {
+        if (! auth()->user()->can('authentication-log.delete')) {
             abort(403, 'Unauthorized action.');
         }
 

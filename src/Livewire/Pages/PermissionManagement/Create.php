@@ -2,27 +2,29 @@
 
 namespace Bale\Core\Livewire\Pages\PermissionManagement;
 
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 use Spatie\Permission\Models\Permission;
-use Livewire\Attributes\{Layout, Title};
 
 #[Layout('core::layouts.app')]
 #[Title('Create Permission')]
 class Create extends Component
 {
     public $name;
+
     public $guard_name = 'web';
 
     public function mount()
     {
-        if (!auth()->user()->can('permission.create')) {
+        if (! auth()->user()->can('permission.create')) {
             abort(403, 'Unauthorized action.');
         }
     }
 
     public function save()
     {
-        if (!auth()->user()->can('permission.create')) {
+        if (! auth()->user()->can('permission.create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -37,6 +39,7 @@ class Create extends Component
         ]);
 
         session()->flash('message', 'Permission created successfully.');
+
         return $this->redirect(route('permission.index'), navigate: true);
     }
 

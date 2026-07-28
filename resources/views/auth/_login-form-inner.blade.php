@@ -154,7 +154,7 @@ $dark (bool) — true when rendered on the dark gradient (mobile), false on ligh
     <div>
         {{-- Active submit --}}
         <button type="submit" :disabled="!recaptchaValue" x-show="recaptchaValue"
-            class="w-full px-6 py-3.5 text-sm font-bold text-white rounded-2xl shadow-lg transition-all duration-300 hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full px-6 py-3.5 cursor-pointer text-sm font-bold text-white rounded-2xl shadow-lg transition-all duration-300 hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
             <span class="flex items-center justify-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,7 +194,7 @@ $dark (bool) — true when rendered on the dark gradient (mobile), false on ligh
     {{-- SSO Button --}}
     <div>
         <a href="/login"
-            class="w-full px-6 py-3.5 text-sm font-semibold rounded-2xl flex items-center justify-center gap-3 transition-all duration-300
+            class="w-full px-6 py-3.5 text-sm font-semibold cursor-pointer rounded-2xl flex items-center justify-center gap-3 transition-all duration-300
                   {{ $isDark
     ? 'bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20'
     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm' }}">

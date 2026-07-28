@@ -3,8 +3,8 @@
 namespace Bale\Core\Tests\Feature\Auth;
 
 use App\Models\User;
-use Lunaweb\RecaptchaV3\Facades\RecaptchaV3;
 use Illuminate\Support\Facades\Auth;
+use Lunaweb\RecaptchaV3\Facades\RecaptchaV3;
 
 beforeEach(function () {
     // Mocking reCAPTCHA agar selalu sukses dalam pengetesan
@@ -47,7 +47,7 @@ it('berhasil login dengan kredensial yang benar dan diarahkan ke dashboard', fun
         'password' => $password,
         'g-recaptcha-response' => 'test-token',
     ])
-    ->assertRedirect(route('dashboard'));
+        ->assertRedirect(route('dashboard'));
 
     $this->assertTrue(Auth::check());
     $this->assertEquals($user->id, Auth::id());

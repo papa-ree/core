@@ -42,7 +42,7 @@ class LoginSecurityService
             ->where('blocked_until', '>', now())
             ->first();
 
-        if (!$record) {
+        if (! $record) {
             return ['blocked' => false, 'seconds_remaining' => 0, 'reason' => ''];
         }
 
@@ -67,7 +67,7 @@ class LoginSecurityService
             ->select('locked_until')
             ->first();
 
-        if (!$user) {
+        if (! $user) {
             return ['locked' => false, 'seconds_remaining' => 0];
         }
 
@@ -83,6 +83,7 @@ class LoginSecurityService
     public function getAttemptCount(string $username, string $ip): int
     {
         $key = $this->buildCacheKey($username, $ip);
+
         return (int) Cache::get($key, 0);
     }
 
@@ -208,7 +209,7 @@ class LoginSecurityService
             $seconds = $rule['seconds'];
             $lockKey = $this->buildLockKey($username, $ip);
             $expiryAt = now()->addSeconds($seconds);
-            Cache::put($lockKey . ':expires_at', $expiryAt->toIso8601String(), $expiryAt);
+            Cache::put($lockKey.':expires_at', $expiryAt->toIso8601String(), $expiryAt);
 
             // Also lock the account in DB
             DB::table('users')
@@ -220,7 +221,7 @@ class LoginSecurityService
             $seconds = $rule['seconds'];
             $lockKey = $this->buildLockKey($username, $ip);
             $expiryAt = now()->addSeconds($seconds);
-            Cache::put($lockKey . ':expires_at', $expiryAt->toIso8601String(), $expiryAt);
+            Cache::put($lockKey.':expires_at', $expiryAt->toIso8601String(), $expiryAt);
 
             DB::table('users')
                 ->where('username', $username)
@@ -349,12 +350,13 @@ class LoginSecurityService
     public function getLockSecondsRemaining(string $username, string $ip): int
     {
         $lockKey = $this->buildLockKey($username, $ip);
-        $expireKey = $lockKey . ':expires_at';
+        $expireKey = $lockKey.':expires_at';
 
         $expiresAt = Cache::get($expireKey);
 
         if ($expiresAt) {
             $diff = (int) now()->diffInSeconds(Carbon::parse($expiresAt));
+
             return max(0, $diff);
         }
 
@@ -363,11 +365,11 @@ class LoginSecurityService
 
     protected function buildCacheKey(string $username, string $ip): string
     {
-        return $this->cachePrefix . md5($username . ':' . $ip);
+        return $this->cachePrefix.md5($username.':'.$ip);
     }
 
     protected function buildLockKey(string $username, string $ip): string
     {
-        return $this->cachePrefix . 'lock:' . md5($username . ':' . $ip);
+        return $this->cachePrefix.'lock:'.md5($username.':'.$ip);
     }
 }

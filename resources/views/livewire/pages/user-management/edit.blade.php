@@ -8,7 +8,7 @@
     | Right → Tabbed edit forms (Profile · Security · Role)
     |
     | Removed: Services tab (replaced with user info on the sidebar)
-    | Role: single selection via radio
+    | Role: multi selection via checkbox
     --}}
     
     <div x-data="{ activeTab: @entangle('activeTab') }">
@@ -41,14 +41,16 @@
                                 </span>
                             </div>
                         </div>
-                        {{-- Role badge top-right --}}
-                        @if($this->user->roles->first())
-                            <div class="absolute top-3 right-3">
-                                <span
-                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-white/20 text-white backdrop-blur-sm border border-white/20">
-                                    <x-lucide-shield class="w-3 h-3" />
-                                    {{ $this->user->roles->first()->name }}
-                                </span>
+                        {{-- Role badges top-right --}}
+                        @if($this->user->roles->isNotEmpty())
+                            <div class="absolute top-3 right-3 flex flex-wrap gap-1 justify-end">
+                                @foreach($this->user->roles as $role)
+                                    <span
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-white/20 text-white backdrop-blur-sm border border-white/20">
+                                        <x-lucide-shield class="w-3 h-3" />
+                                        {{ $role->name }}
+                                    </span>
+                                @endforeach
                             </div>
                         @endif
                     </div>
@@ -161,7 +163,7 @@
                             : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50'"
                         class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl mb-2 transition-all duration-200 focus:outline-none"
                     >
-                        <x-lucide-shield-check class="w-4 h-4" />
+                        <x-lucide-user-key class="w-4 h-4" />
                         {{ __('Role') }}
                     </button>
                 </div>
@@ -263,7 +265,7 @@
     
                 {{-- ===========================
                 TAB: Role
-                Single role → radio buttons
+                Multiple roles → checkboxes
                 =========================== --}}
                 <div x-show="activeTab === 'role'" x-transition:enter="transition ease-out duration-150"
                     x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
@@ -272,20 +274,22 @@
                         <div>
                             <h3 class="text-sm font-bold text-gray-900 dark:text-white">{{ __('Role Assignment') }}</h3>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                {{ __('Each user can only hold one role. Changing the role will immediately update their access permissions.') }}
+                                {{ __('Select one or more roles for this user. Each role acts as a permission group — the user will receive all permissions from every assigned role.') }}
                             </p>
                         </div>
     
                         {{-- Current assignment info banner --}}
-                        @if($this->user->roles->first())
+                        @if($this->user->roles->isNotEmpty())
                             <div
-                                class="flex items-center gap-3 p-3.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800">
-                                <x-lucide-info class="w-4 h-4 text-indigo-500 shrink-0" />
-                                <p class="text-xs text-indigo-700 dark:text-indigo-400">
+                                class="flex items-center gap-3 p-3.5 rounded-xl bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800">
+                                <x-lucide-info class="w-4 h-4 text-purple-500 shrink-0" />
+                                <p class="text-xs text-purple-700 dark:text-purple-400">
                                     {{ __('Currently assigned:') }}
-                                    <span class="font-bold capitalize">{{ $this->user->roles->first()->name }}</span>
-                                    — {{ __('has') }} {{ $this->user->roles->first()->permissions->count() }}
-                                    {{ __('permissions') }}
+                                    @foreach($this->user->roles as $index => $role)
+                                        <span class="font-bold capitalize">{{ $role->name }}</span>{{ $index < $this->user->roles->count() - 1 ? ', ' : '' }}
+                                    @endforeach
+                                    — {{ __('has') }} {{ $this->user->getAllPermissions()->count() }}
+                                    {{ __('total permissions') }}
                                 </p>
                             </div>
                         @endif
@@ -297,20 +301,11 @@
                                                   bg-gray-50 dark:bg-gray-800/50
                                                   border-gray-200 dark:border-gray-700
                                                   hover:bg-white dark:hover:bg-gray-800
-                                                  hover:border-indigo-300 dark:hover:border-indigo-700
-                                                  has-checked:bg-indigo-50 dark:has-checked:bg-indigo-900/10
-                                                  has-checked:border-indigo-400 dark:has-checked:border-indigo-600
+                                                  hover:border-purple-300 dark:hover:border-purple-700
+                                                  has-checked:bg-purple-50 dark:has-checked:bg-purple-900/10
+                                                  has-checked:border-purple-400 dark:has-checked:border-purple-600
                                                   has-checked:shadow-sm">
-                                    <input type="radio" name="selectedRole" wire:model="selectedRole" value="{{ $role->name }}"
-                                        class="peer sr-only">
-    
-                                    {{-- Custom radio dot --}}
-                                    <span class="shrink-0 flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all duration-200
-                                                     border-gray-300 dark:border-gray-600
-                                                     peer-checked:border-indigo-500 peer-checked:bg-indigo-500">
-                                        <span
-                                            class="w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100 transition-opacity"></span>
-                                    </span>
+                                    <x-core::checkbox wire:model="selectedRoles" value="{{ $role->name }}" />
     
                                     {{-- Role info --}}
                                     <div class="flex-1 min-w-0">
@@ -330,7 +325,7 @@
                                     @if($role->permissions->count() > 0)
                                         <span class="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full
                                                              bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700
-                                                             text-gray-500 dark:text-gray-400 peer-checked:border-indigo-300">
+                                                             text-gray-500 dark:text-gray-400">
                                             {{ $role->permissions->count() }}
                                         </span>
                                     @endif
@@ -349,7 +344,7 @@
     
                         <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
                             <x-core::secondary-button wire:click="cancel" type="button" label="{{ __('Discard') }}" />
-                            <x-core::button type="submit" label="{{ __('Assign Role') }}" spinner="updateRoles">
+                            <x-core::button type="submit" label="{{ __('Assign Roles') }}" spinner="updateRoles">
                                 <x-slot name="icon"><x-lucide-shield-check class="w-4 h-4" /></x-slot>
                             </x-core::button>
                         </div>

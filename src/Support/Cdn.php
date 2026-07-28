@@ -8,7 +8,6 @@ class Cdn
 {
     /**
      * Cache untuk organization slug agar tidak query database berulang kali
-     * @var string|null
      */
     protected static ?string $cachedOrganizationSlug = null;
 
@@ -31,6 +30,7 @@ class Cdn
 
     /**
      * Callback for resolving organization slug
+     *
      * @var callable|null
      */
     protected static $organizationSlugResolver;
@@ -63,7 +63,7 @@ class Cdn
     /**
      * Generate CDN URL dengan format: base_url/bucket/organization_slug/path
      * Jika path diawali dengan 'shared/', organization_slug akan diabaikan.
-     * 
+     *
      * Contoh Org: https://cdn.ponorogo.go.id/bale/dinas-pendidikan/thumbnails/logo.png
      * Contoh Shared: https://cdn.ponorogo.go.id/bale/shared/logo-png.png
      */
@@ -74,21 +74,21 @@ class Cdn
         $orgSlug = static::organizationSlug();
 
         // Jika path diawali dengan organization slug, hapus agar tidak double
-        if ($orgSlug && Str::startsWith($path, $orgSlug . '/')) {
-            $path = Str::after($path, $orgSlug . '/');
+        if ($orgSlug && Str::startsWith($path, $orgSlug.'/')) {
+            $path = Str::after($path, $orgSlug.'/');
         }
 
-        if (!app()->isProduction()) {
+        if (! app()->isProduction()) {
             $urlPath = 'media/';
-            if (!Str::startsWith($path, 'shared/') && $orgSlug) {
-                $urlPath .= $orgSlug . '/';
+            if (! Str::startsWith($path, 'shared/') && $orgSlug) {
+                $urlPath .= $orgSlug.'/';
             }
             $urlPath .= $path;
 
             return asset($urlPath);
         }
 
-        if (!static::enabled() || !static::baseUrl()) {
+        if (! static::enabled() || ! static::baseUrl()) {
             return static::fallback($path);
         }
 
@@ -98,14 +98,14 @@ class Cdn
         ];
 
         // Jika bukan path shared, tambahkan organization slug
-        if (!Str::startsWith($path, 'shared/')) {
+        if (! Str::startsWith($path, 'shared/')) {
             $segments[] = $orgSlug;
         }
 
         $segments[] = $path;
 
         return implode('/', array_filter(array_map(
-            fn($v) => trim($v, '/'),
+            fn ($v) => trim($v, '/'),
             $segments
         )));
     }
@@ -120,6 +120,6 @@ class Cdn
 
     protected static function fallback(string $path): string
     {
-        return '/' . $path;
+        return '/'.$path;
     }
 }

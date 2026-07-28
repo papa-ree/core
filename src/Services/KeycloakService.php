@@ -2,17 +2,20 @@
 
 namespace Bale\Core\Services;
 
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Session;
 use Laravel\Socialite\Facades\Socialite;
 
 class KeycloakService
 {
     protected $baseUrl;
+
     protected $realm;
+
     protected $clientId;
+
     protected $clientSecret;
 
     public function __construct()
@@ -136,7 +139,7 @@ class KeycloakService
     }
 
     /**
-     * Cek status login user berdasarkan access token 
+     * Cek status login user berdasarkan access token
      */
     public function checkLoginStatus(string $accessToken): array
     {
@@ -190,8 +193,9 @@ class KeycloakService
     public function logout()
     {
         $keycloakIdToken = Session::get('keycloak_id_token');
-        if (!$keycloakIdToken)
+        if (! $keycloakIdToken) {
             return;
+        }
 
         // The URL the user is redirected to after logout.
         $redirectUri = Config::get('app.url');
@@ -202,7 +206,7 @@ class KeycloakService
             'client_id' => config('services.keycloak.client_id'),
         ]);
 
-        $url .= (str_contains($url, '?') ? '&' : '?') . http_build_query($params);
+        $url .= (str_contains($url, '?') ? '&' : '?').http_build_query($params);
 
         return $url;
     }

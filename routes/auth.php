@@ -30,7 +30,7 @@ Route::group(['middleware' => ['web']], function () {
             'client_id' => config('services.keycloak.client_id'),
         ]);
 
-        $url .= (str_contains($url, '?') ? '&' : '?') . http_build_query($params);
+        $url .= (str_contains($url, '?') ? '&' : '?').http_build_query($params);
 
         return redirect($url);
     })->name('logout');
@@ -81,7 +81,7 @@ Route::group(['middleware' => ['web']], function () {
             ]);
 
             // jika user baru maka set role sebagai guest
-            if (!$authUser->getRoleNames()->first()) {
+            if (! $authUser->getRoleNames()->first()) {
                 $authUser->syncRoles('guest');
             }
 
@@ -98,23 +98,25 @@ Route::group(['middleware' => ['web']], function () {
             ]);
 
             $redirectTo = session()->pull('sso_redirect_back', route('dashboard'));
+
             return redirect()->to($redirectTo);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Jika ini adalah silent check (prompt=none) dan gagal, jangan anggap error fatal
             if ($isSsoCheck) {
                 session(['sso_checked' => true]); // Tandai SSO sudah dicek meskipun gagal
+
                 return redirect()->to('/'); // Kembali ke home sebagai guest
             }
 
             // Log error untuk debug, bantu identifikasi jika error bukan sekedar silent login gagal
-            \Log::error('Keycloak Login Error: ' . $e->getMessage(), [
-                'exception' => $e
+            Log::error('Keycloak Login Error: '.$e->getMessage(), [
+                'exception' => $e,
             ]);
 
             // Cek apakah ini silent login failure (sering terjadi saat InvalidStateException atau user batal)
             // Jika sudah ada prompt=login dan masih error, kemungkinan besar error sistem bukan sekedar sesi
             if (request()->has('prompt') || request()->has('error')) {
-                return redirect()->route('login')->with('error', 'Authentication failed: ' . $e->getMessage());
+                return redirect()->route('login')->with('error', 'Authentication failed: '.$e->getMessage());
             }
 
             // Silent login gagal (karena user belum login di Keycloak)
@@ -128,23 +130,25 @@ Route::group(['middleware' => ['web']], function () {
         if (auth()->check()) {
             return redirect('/');
         }
+
         return view('core::auth.login');
     })->name('login');
 
     // Halaman lockout — ditampilkan saat user ter-blokir
     // Hanya bisa diakses jika ada data lockout di session (di-set oleh middleware CheckLoginRateLimit)
     Route::get('/entrance.gate/blocked', function () {
-        if (!session()->has('lockout_seconds')) {
+        if (! session()->has('lockout_seconds')) {
             return redirect()->route('login');
         }
+
         return view('core::auth.lockout');
     })->name('login.lockout');
 
     // POST /entrance.gate — form submit dengan recaptcha & rate limit
     Route::post('/entrance.gate', [AuthenticatedSessionController::class, 'store'])
         ->middleware(array_filter([
-            'guest:' . config('fortify.guard'),
-            config('fortify.limiters.login') ? 'throttle:' . config('fortify.limiters.login') : null,
+            'guest:'.config('fortify.guard'),
+            config('fortify.limiters.login') ? 'throttle:'.config('fortify.limiters.login') : null,
             'check_login_rate_limit',
             'recaptcha',
         ]))->name('login.store');

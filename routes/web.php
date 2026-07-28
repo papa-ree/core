@@ -2,23 +2,24 @@
 
 use Bale\Core\Controllers\DashboardSelector;
 use Bale\Core\Controllers\MediaController;
-use Bale\Core\Livewire\Pages\UserManagement\Index as UserManagementIndex;
-use Bale\Core\Livewire\Pages\UserManagement\Create;
-use Bale\Core\Livewire\Pages\UserManagement\Edit;
-use Bale\Core\Livewire\Pages\PermissionManagement\Index as PermissionIndex;
+use Bale\Core\Livewire\Pages\ActivityLog\Index as ActivityLogIndex;
+use Bale\Core\Livewire\Pages\AuthenticationLog\Edit as AuthLogEdit;
+use Bale\Core\Livewire\Pages\AuthenticationLog\Index as AuthLogIndex;
 use Bale\Core\Livewire\Pages\PermissionManagement\Create as PermissionCreate;
 use Bale\Core\Livewire\Pages\PermissionManagement\Edit as PermissionEdit;
-use Bale\Core\Livewire\Pages\RoleManagement\Index as RoleIndex;
+use Bale\Core\Livewire\Pages\PermissionManagement\Index as PermissionIndex;
 use Bale\Core\Livewire\Pages\RoleManagement\Create as RoleCreate;
 use Bale\Core\Livewire\Pages\RoleManagement\Edit as RoleEdit;
-use Bale\Core\Livewire\Pages\AuthenticationLog\Index as AuthLogIndex;
-use Bale\Core\Livewire\Pages\AuthenticationLog\Edit as AuthLogEdit;
+use Bale\Core\Livewire\Pages\RoleManagement\Index as RoleIndex;
+use Bale\Core\Livewire\Pages\UserManagement\Create;
+use Bale\Core\Livewire\Pages\UserManagement\Edit;
+use Bale\Core\Livewire\Pages\UserManagement\Index as UserManagementIndex;
 use Bale\Core\Livewire\Pages\WpTools\SqlMigrator\Index as SqlMigratorIndex;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware([
     'auth',
-    'web'
+    'web',
 ])->group(function () {
     Route::get('/dashboard', [DashboardSelector::class, 'resolve'])->name('dashboard');
 });
@@ -50,14 +51,18 @@ Route::middleware(['auth', 'web', 'permission:authentication-log.read'])->group(
     Route::get('/authentication-logs/{id}/edit', AuthLogEdit::class)->name('authentication-log.edit');
 });
 
+// Activity Log
+Route::middleware(['auth', 'web', 'permission:activity-log.read'])->group(function () {
+    Route::get('/activity-logs', ActivityLogIndex::class)->name('activity-log');
+});
+
 // WP Tools
 Route::middleware(['auth', 'web'])->group(function () {
     Route::get('/wp-tools/sql-migrator', SqlMigratorIndex::class)->name('wp-tools.sql-migrator');
 });
 
-
 Route::middleware([
-    'web'
+    'web',
 ])->group(function () {
     Route::get('/media/{path}', [MediaController::class, 'show'])
         ->where('path', '.*')

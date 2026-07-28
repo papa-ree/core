@@ -2,6 +2,7 @@
 
 namespace Bale\Core;
 
+use Bale\Core\Commands\CleanActivityLogCommand;
 use Bale\Core\Commands\InstallCommand;
 use Bale\Core\Commands\PublishErrorCommand;
 use Bale\Core\Commands\PublishMigrationCommand;
@@ -11,10 +12,12 @@ use Bale\Core\Middleware\SetLocale;
 use Bale\Core\Middleware\VerifyCaptcha;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Livewire\Component as LivewireComponent;
 use Livewire\Livewire;
+use Spatie\Activitylog\Actions\CleanActivityLogAction;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
@@ -24,14 +27,14 @@ class CoreServiceProvider extends ServiceProvider
 {
     /**
      * Method register()
-     * 
+     *
      * Digunakan untuk mendaftarkan service, binding, atau command
      * ke dalam service container Laravel.
      */
     public function register(): void
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/../config/core.php',
+            __DIR__.'/../config/core.php',
             'core'
         );
 
@@ -44,6 +47,7 @@ class CoreServiceProvider extends ServiceProvider
             'command.core:install' => InstallCommand::class,
             'command.core:publish-migration' => PublishMigrationCommand::class,
             'command.core:publish-error' => PublishErrorCommand::class,
+            'command.core:clean-activity-log' => CleanActivityLogCommand::class,
         ];
 
         foreach ($commands as $key => $class) {
@@ -55,7 +59,7 @@ class CoreServiceProvider extends ServiceProvider
 
     /**
      * Method boot()
-     * 
+     *
      * Dipanggil setelah semua service diregistrasi.
      * Digunakan untuk load resource seperti:
      * - view
@@ -83,8 +87,10 @@ class CoreServiceProvider extends ServiceProvider
         // 'abilities' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
         // 'ability' => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
         $this->app->booted(function () {
-            $this->loadRoutesFrom(__DIR__ . '/../routes/auth.php');
-            $this->loadRoutesFrom(__DIR__ . '/../routes/web.php');
+            $this->loadRoutesFrom(__DIR__.'/../routes/auth.php');
+            $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
+            $this->configureActivityLog();
+            $this->registerSchedule();
         });
 
         $this->offerPublishing();
@@ -101,28 +107,28 @@ class CoreServiceProvider extends ServiceProvider
     {
         Livewire::addNamespace(
             'core-shared-components',
-            __DIR__ . '/../resources/views/livewire/shared-components'
+            __DIR__.'/../resources/views/livewire/shared-components'
         );
     }
 
     protected function registerViews(): void
     {
         $this->loadViewsFrom(
-            __DIR__ . '/../resources/views',
+            __DIR__.'/../resources/views',
             'core'
         );
     }
 
     protected function registerBladeComponents(): void
     {
-        $componentPath = __DIR__ . '/../resources/views/components';
+        $componentPath = __DIR__.'/../resources/views/components';
 
         if (File::isDirectory($componentPath)) {
             foreach (File::allFiles($componentPath) as $file) {
                 if ($file->getExtension() === 'blade') {
                     $componentName = str_replace('.blade.php', '', $file->getFilename());
                     // Register as <x-your-package-alias-component-name />
-                    Blade::component('core::' . $componentName, 'core::' . $componentName);
+                    Blade::component('core::'.$componentName, 'core::'.$componentName);
                 }
             }
         }
@@ -131,32 +137,35 @@ class CoreServiceProvider extends ServiceProvider
     /**
      * Publish file agar bisa diubah oleh user.
      */
-
     protected function offerPublishing(): void
     {
-        if (!$this->app->runningInConsole()) {
+        if (! $this->app->runningInConsole()) {
             return;
         }
 
         // Publish config
         $this->publishes([
-            __DIR__ . '/../config/core.php' => config_path('core.php'),
+            __DIR__.'/../config/core.php' => config_path('core.php'),
+        ], 'core-config');
+
+        $this->publishes([
+            __DIR__.'/../config/activitylog.php' => config_path('activitylog.php'),
         ], 'core-config');
 
         $this->publishes($this->getMigrations(), 'core:migrations');
 
         $this->publishes([
-            __DIR__ . '/../resources/js/' => resource_path('js/'),
+            __DIR__.'/../resources/js/' => resource_path('js/'),
         ], 'core:assets');
 
         // Publish error views
         $this->publishes([
-            __DIR__ . '/../resources/views/errors/' => resource_path('views/errors/'),
+            __DIR__.'/../resources/views/errors/' => resource_path('views/errors/'),
         ], 'core:error-views');
 
         // Publish lang files
         $this->publishes([
-            __DIR__ . '/../resources/lang/' => base_path('lang/'),
+            __DIR__.'/../resources/lang/' => base_path('lang/'),
         ], 'core:lang');
     }
 
@@ -166,15 +175,15 @@ class CoreServiceProvider extends ServiceProvider
     protected function getMigrations(): array
     {
         $migrations = [];
-        $sourcePath = __DIR__ . '/../database/migrations/';
+        $sourcePath = __DIR__.'/../database/migrations/';
 
         // Pastikan direktori ada
-        if (!is_dir($sourcePath)) {
+        if (! is_dir($sourcePath)) {
             return $migrations;
         }
 
         // Loop semua file migration (baik .php maupun .stub)
-        foreach (glob($sourcePath . '*.{php,stub}', GLOB_BRACE) as $file) {
+        foreach (glob($sourcePath.'*.{php,stub}', GLOB_BRACE) as $file) {
             $filename = basename($file);
 
             // Jika file stub, ganti menjadi nama migration yang benar di aplikasi
@@ -197,20 +206,20 @@ class CoreServiceProvider extends ServiceProvider
         $migrationName = preg_replace('/\.php\.stub$/', '.php', $filename);
         $migrationName = preg_replace('/\.stub$/', '.php', $migrationName);
 
-        return database_path('migrations/' . $timestamp . '_' . $migrationName);
+        return database_path('migrations/'.$timestamp.'_'.$migrationName);
     }
 
     protected function registerLivewireComponents(): void
     {
-        $namespace = "Bale\\Core\\Livewire";
-        $basePath = __DIR__ . "/Livewire";
+        $namespace = 'Bale\\Core\\Livewire';
+        $basePath = __DIR__.'/Livewire';
 
         // Jika folder Livewire tidak ada, hentikan proses
-        if (!is_dir($basePath)) {
+        if (! is_dir($basePath)) {
             return;
         }
 
-        $finder = new Finder();
+        $finder = new Finder;
         $finder->files()->in($basePath)->name('*.php');
 
         foreach ($finder as $file) {
@@ -220,27 +229,46 @@ class CoreServiceProvider extends ServiceProvider
             $nsPath = str_replace(['/', '\\'], '\\', $relativePathname);
 
             // Konversi ke FQCN (Fully Qualified Class Name)
-            $class = $namespace . '\\' . Str::beforeLast($nsPath, '.php');
+            $class = $namespace.'\\'.Str::beforeLast($nsPath, '.php');
 
             // Skip jika class tidak ditemukan
-            if (!class_exists($class)) {
+            if (! class_exists($class)) {
                 continue;
             }
 
             // Skip jika bukan turunan Livewire\Component
-            if (!is_subclass_of($class, LivewireComponent::class)) {
+            if (! is_subclass_of($class, LivewireComponent::class)) {
                 continue;
             }
 
             // Buat alias berdasarkan struktur folder (kebab-case)
             $withoutExt = Str::replaceLast('.php', '', $relativePathname);
             $segments = preg_split('#[\\/\\\\]#', $withoutExt);
-            $kebab = array_map(fn($s) => Str::kebab($s), $segments);
+            $kebab = array_map(fn ($s) => Str::kebab($s), $segments);
 
-            $alias = 'core.' . implode('.', $kebab);
+            $alias = 'core.'.implode('.', $kebab);
 
             // Registrasi komponen ke Livewire
             Livewire::component($alias, $class);
         }
+    }
+
+    /**
+     * Override activitylog config dengan konfigurasi bale-core.
+     * Dilakukan di booted callback agar berjalan setelah Spatie ActivityLogServiceProvider.
+     */
+    protected function configureActivityLog(): void
+    {
+        $activityLogConfig = require __DIR__.'/../config/activitylog.php';
+
+        config(['activitylog' => array_merge(config('activitylog', []), $activityLogConfig)]);
+    }
+
+    protected function registerSchedule(): void
+    {
+        Schedule::call(function () {
+            $days = config('activitylog.clean_after_days', 90);
+            app(CleanActivityLogAction::class)->execute($days);
+        })->dailyAt('02:00')->timezone('Asia/Jakarta');
     }
 }

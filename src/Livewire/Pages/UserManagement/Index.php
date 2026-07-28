@@ -3,9 +3,10 @@
 namespace Bale\Core\Livewire\Pages\UserManagement;
 
 use App\Models\User;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
+use Livewire\Attributes\Title;
 use Livewire\Component;
-use Livewire\WithPagination;
-use Livewire\Attributes\{Layout, Title, Computed, On};
 
 #[Layout('core::layouts.app')]
 #[Title('User Management')]
@@ -15,7 +16,7 @@ class Index extends Component
     public function mount()
     {
         // Check permission
-        if (!auth()->user()->can('user-management.read')) {
+        if (! auth()->user()->can('user-management.read')) {
             abort(403, 'Unauthorized action.');
         }
     }
@@ -23,7 +24,7 @@ class Index extends Component
     public function render()
     {
         // Check permission
-        if (!auth()->user()->can('user-management.read')) {
+        if (! auth()->user()->can('user-management.read')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -34,7 +35,7 @@ class Index extends Component
     public function deleteUser($id)
     {
         // Check permission
-        if (!auth()->user()->can('user-management.delete')) {
+        if (! auth()->user()->can('user-management.delete')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -42,7 +43,8 @@ class Index extends Component
 
         // Prevent deleting own account
         if ($user->id === auth()->id()) {
-             $this->dispatch('toast', message: 'You cannot delete your own account.', type: 'error');
+            $this->dispatch('toast', message: 'You cannot delete your own account.', type: 'error');
+
             return;
         }
 

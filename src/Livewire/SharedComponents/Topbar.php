@@ -2,9 +2,9 @@
 
 namespace Bale\Core\Livewire\SharedComponents;
 
-use Livewire\Component;
-use Livewire\Attributes\Computed;
 use Bale\Cms\Models\BaleList;
+use Livewire\Attributes\Computed;
+use Livewire\Component;
 
 class Topbar extends Component
 {
@@ -19,12 +19,12 @@ class Topbar extends Component
         // Try to load bale if we are in tenant context
         $uuid = session('bale_active_uuid');
 
-        if (!$uuid) {
+        if (! $uuid) {
             return null;
         }
 
         // We check if BaleList class exists to avoid crash if cms package is missing
-        if (!class_exists('Bale\Cms\Models\BaleList')) {
+        if (! class_exists('Bale\Cms\Models\BaleList')) {
             return null;
         }
 

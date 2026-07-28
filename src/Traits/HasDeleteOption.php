@@ -23,8 +23,8 @@ trait HasDeleteOption
      */
     protected function getModelClass(): string
     {
-        if (!property_exists($this, 'modelClass')) {
-            throw new \Exception("Property \$modelClass belum didefinisikan pada komponen Livewire.");
+        if (! property_exists($this, 'modelClass')) {
+            throw new \Exception('Property $modelClass belum didefinisikan pada komponen Livewire.');
         }
 
         return $this->modelClass;
@@ -36,8 +36,9 @@ trait HasDeleteOption
 
         $item = (new $modelClass)->find($this->deleteId);
 
-        if (!$item) {
+        if (! $item) {
             $this->dispatch('toast', message: 'Item not found', type: 'error');
+
             return;
         }
 

@@ -3,8 +3,8 @@
 namespace Bale\Core\Controllers;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Paparee\Rakaca\Livewire\Pages\Guest\Dashboard\Index;
 
 class DashboardSelector extends Controller
 {
@@ -19,7 +19,7 @@ class DashboardSelector extends Controller
 
         // check rakaca package
         if (
-            class_exists(\Paparee\Rakaca\Livewire\Pages\Guest\Dashboard\Index::class)
+            class_exists(Index::class)
             && $user?->can('guest.dashboard')
         ) {
             return redirect()->route('rakaca.guest-dashboard.index');

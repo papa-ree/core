@@ -2,10 +2,11 @@
 
 namespace Bale\Core\Livewire\Pages\RoleManagement;
 
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
+use Livewire\Attributes\Title;
 use Livewire\Component;
-use Livewire\WithPagination;
 use Spatie\Permission\Models\Role;
-use Livewire\Attributes\{Layout, Title, Computed, On};
 
 #[Layout('core::layouts.app')]
 #[Title('Role Management')]
@@ -13,14 +14,14 @@ class Index extends Component
 {
     public function mount()
     {
-        if (!auth()->user()->can('role.read')) {
+        if (! auth()->user()->can('role.read')) {
             abort(403, 'Unauthorized action.');
         }
     }
 
     public function render()
     {
-        if (!auth()->user()->can('role.read')) {
+        if (! auth()->user()->can('role.read')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -30,7 +31,7 @@ class Index extends Component
     #[On('deleteItem')]
     public function deleteRole($id)
     {
-        if (!auth()->user()->can('role.delete')) {
+        if (! auth()->user()->can('role.delete')) {
             abort(403, 'Unauthorized action.');
         }
 

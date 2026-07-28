@@ -2,8 +2,8 @@
 
 namespace Bale\Core\Controllers;
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MediaController
 {
@@ -40,8 +40,9 @@ class MediaController
                 // ob_clean() kadang bermasalah di production jika buffer kosong/headers sent
                 // Kita gunakan catch silent saja jika gagal clean
                 try {
-                    if (ob_get_level())
+                    if (ob_get_level()) {
                         ob_clean();
+                    }
                 } catch (\Throwable $t) {
                 }
 
@@ -54,7 +55,7 @@ class MediaController
 
         } catch (\Throwable $th) {
             // Log error sebenarnya untuk debugging di production
-            \Illuminate\Support\Facades\Log::error("Media load failed for path: $path. Error: " . $th->getMessage());
+            Log::error("Media load failed for path: $path. Error: ".$th->getMessage());
 
             abort(404);
         }

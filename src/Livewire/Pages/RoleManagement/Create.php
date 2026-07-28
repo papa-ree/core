@@ -2,27 +2,29 @@
 
 namespace Bale\Core\Livewire\Pages\RoleManagement;
 
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 use Spatie\Permission\Models\Role;
-use Livewire\Attributes\{Layout, Title};
 
 #[Layout('core::layouts.app')]
 #[Title('Create Role')]
 class Create extends Component
 {
     public $name;
+
     public $guard_name = 'web';
 
     public function mount()
     {
-        if (!auth()->user()->can('role.create')) {
+        if (! auth()->user()->can('role.create')) {
             abort(403, 'Unauthorized action.');
         }
     }
 
     public function save()
     {
-        if (!auth()->user()->can('role.create')) {
+        if (! auth()->user()->can('role.create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -37,6 +39,7 @@ class Create extends Component
         ]);
 
         session()->flash('message', 'Role created successfully.');
+
         return $this->redirect(route('role.index'), navigate: true);
     }
 

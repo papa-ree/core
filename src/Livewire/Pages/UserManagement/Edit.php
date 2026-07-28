@@ -3,10 +3,12 @@
 namespace Bale\Core\Livewire\Pages\UserManagement;
 
 use App\Models\User;
-use Livewire\Component;
-use Livewire\Attributes\{Layout, Title, Computed};
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Computed;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
+use Livewire\Component;
 use Spatie\Permission\Models\Role;
 
 #[Layout('core::layouts.app')]
@@ -14,21 +16,26 @@ use Spatie\Permission\Models\Role;
 class Edit extends Component
 {
     public $userId;
+
     public $name;
+
     public $username;
+
     public $email;
+
     public $password;
+
     public $password_confirmation;
 
-    // Role assignment — one user can only hold one role
-    public $selectedRole = '';
+    // Role assignment — a user can hold multiple roles (permission groups)
+    public $selectedRoles = [];
 
     // Active tab
     public $activeTab = 'profile';
 
     public function mount($id)
     {
-        if (!auth()->user()->can('user-management.update')) {
+        if (! auth()->user()->can('user-management.update')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -39,13 +46,13 @@ class Edit extends Component
         $this->username = $user->username;
         $this->email = $user->email;
 
-        // Load current role (single)
-        $this->selectedRole = $user->roles->first()?->name ?? '';
+        // Load current roles
+        $this->selectedRoles = $user->roles->pluck('name')->toArray();
     }
 
     public function render()
     {
-        if (!auth()->user()->can('user-management.update')) {
+        if (! auth()->user()->can('user-management.update')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -66,7 +73,7 @@ class Edit extends Component
 
     public function updateBasicInfo()
     {
-        if (!auth()->user()->can('user-management.update')) {
+        if (! auth()->user()->can('user-management.update')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -85,7 +92,7 @@ class Edit extends Component
             'email' => $validated['email'],
         ];
 
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $data['password'] = Hash::make($validated['password']);
         }
 
@@ -96,14 +103,14 @@ class Edit extends Component
 
     public function updateRoles()
     {
-        if (!auth()->user()->can('user-management.update')) {
+        if (! auth()->user()->can('user-management.update')) {
             abort(403, 'Unauthorized action.');
         }
 
         $user = User::findOrFail($this->userId);
 
-        // Sync single role using Spatie's syncRoles method
-        $user->syncRoles(array_filter([$this->selectedRole]));
+        // Sync multiple roles using Spatie's syncRoles method
+        $user->syncRoles($this->selectedRoles);
 
         $this->dispatch('toast', message: 'User roles updated successfully.', type: 'success');
     }

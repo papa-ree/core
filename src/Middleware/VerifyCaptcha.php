@@ -6,13 +6,14 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Lunaweb\RecaptchaV3\Facades\RecaptchaV3;
+use Symfony\Component\HttpFoundation\Response;
 
 class VerifyCaptcha
 {
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next)
     {
@@ -24,7 +25,7 @@ class VerifyCaptcha
 
         // Verifikasi reCAPTCHA
         $recaptchaScore = RecaptchaV3::verify($request->input('g-recaptcha-response'), 'login');
-        if (!$recaptchaScore || $recaptchaScore < 0.5) {
+        if (! $recaptchaScore || $recaptchaScore < 0.5) {
             throw ValidationException::withMessages([
                 'g-recaptcha-response' => ['reCAPTCHA verification failed or score too low.'],
             ]);

@@ -2,21 +2,24 @@
 
 namespace Bale\Core\Livewire\Pages\PermissionManagement;
 
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 use Spatie\Permission\Models\Permission;
-use Livewire\Attributes\{Layout, Title};
 
 #[Layout('core::layouts.app')]
 #[Title('Edit Permission')]
 class Edit extends Component
 {
     public $permissionId;
+
     public $name;
+
     public $guard_name;
 
     public function mount($id)
     {
-        if (!auth()->user()->can('permission.update')) {
+        if (! auth()->user()->can('permission.update')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -28,12 +31,12 @@ class Edit extends Component
 
     public function save()
     {
-        if (!auth()->user()->can('permission.update')) {
+        if (! auth()->user()->can('permission.update')) {
             abort(403, 'Unauthorized action.');
         }
 
         $this->validate([
-            'name' => 'required|unique:permissions,name,' . $this->permissionId,
+            'name' => 'required|unique:permissions,name,'.$this->permissionId,
             'guard_name' => 'required',
         ]);
 
@@ -44,6 +47,7 @@ class Edit extends Component
         ]);
 
         session()->flash('message', 'Permission updated successfully.');
+
         return $this->redirect(route('permission.index'), navigate: true);
     }
 

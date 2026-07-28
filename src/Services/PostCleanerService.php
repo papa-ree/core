@@ -22,7 +22,7 @@ class PostCleanerService
      *  5. Split on newlines and build EditorJS paragraph blocks.
      *
      * @param  string  $rawContent  The raw `post_content` value from the SQL dump.
-     * @return array                EditorJS-compatible JSON structure (associative array).
+     * @return array EditorJS-compatible JSON structure (associative array).
      */
     public function clean(string $rawContent): array
     {
@@ -57,7 +57,6 @@ class PostCleanerService
      * Build an EditorJS-compatible JSON structure from an array of clean paragraph strings.
      *
      * @param  string[]  $paragraphs
-     * @return array
      */
     protected function buildEditorJsBlocks(array $paragraphs): array
     {
@@ -81,8 +80,8 @@ class PostCleanerService
         }
 
         return [
-            'time'    => now()->timestamp * 1000, // EditorJS uses milliseconds
-            'blocks'  => $blocks,
+            'time' => now()->timestamp * 1000, // EditorJS uses milliseconds
+            'blocks' => $blocks,
             'version' => '2.29.1',
         ];
     }

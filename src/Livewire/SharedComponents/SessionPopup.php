@@ -8,8 +8,11 @@ use Livewire\Component;
 class SessionPopup extends Component
 {
     public bool $isLoggedIn = false;
+
     public bool $isSso = false;
+
     public ?string $userName = null;
+
     public ?string $dashboardUrl = null;
 
     public function mount(): void

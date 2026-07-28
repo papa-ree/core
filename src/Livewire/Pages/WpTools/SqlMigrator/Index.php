@@ -5,10 +5,12 @@ namespace Bale\Core\Livewire\Pages\WpTools\SqlMigrator;
 use Bale\Core\Services\PostCleanerService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 use Paparee\Rakaca\Models\BaleList;
 use Ramsey\Uuid\Uuid;
@@ -37,7 +39,7 @@ class Index extends Component
     // Public State
     // -----------------------------------------------------------------------
 
-    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
+    /** @var TemporaryUploadedFile|null */
     #[Validate(['sqlFile' => 'required|file|mimes:txt|max:102400'])]
     public $sqlFile = null;
 
@@ -61,16 +63,21 @@ class Index extends Component
     // -----------------------------------------------------------------------
 
     public bool $isProcessing = false;
+
     public bool $isDone = false;
+
     public int $importedCount = 0;
+
     public int $skippedCount = 0;
+
     public int $filteredCount = 0;
+
     public int $totalFoundCount = 0;
 
     /** @var array<string> Human-readable error messages per row. */
     public array $importErrors = [];
 
-    /** @var string|null  A single critical error that aborts the run. */
+    /** @var string|null A single critical error that aborts the run. */
     public ?string $fatalError = null;
 
     // -----------------------------------------------------------------------
@@ -80,16 +87,16 @@ class Index extends Component
     /** All active BaleList entries available for selection. */
     public function getBaleListsProperty(): array
     {
-        if (!class_exists(BaleList::class)) {
+        if (! class_exists(BaleList::class)) {
             return [];
         }
 
         return BaleList::where('is_active', true)
             ->orderBy('name')
             ->get()
-            ->map(fn($bale) => [
+            ->map(fn ($bale) => [
                 'id' => $bale->id,
-                'display_name' => $bale->name . ($bale->database_name ? " ({$bale->database_name}@{$bale->database_host})" : ""),
+                'display_name' => $bale->name.($bale->database_name ? " ({$bale->database_name}@{$bale->database_host})" : ''),
             ])
             ->toArray();
     }
@@ -118,7 +125,7 @@ class Index extends Component
 
         try {
             $bale = BaleList::find($value);
-            if (!$bale) {
+            if (! $bale) {
                 return;
             }
 
@@ -129,14 +136,14 @@ class Index extends Component
                 ->select('uuid', 'name', 'email')
                 ->orderBy('name')
                 ->get()
-                ->map(fn($user) => [
+                ->map(fn ($user) => [
                     'id' => $user->uuid,
-                    'name' => $user->name . ($user->email ? " ({$user->email})" : ""),
+                    'name' => $user->name.($user->email ? " ({$user->email})" : ''),
                 ])
                 ->toArray();
 
         } catch (\Throwable $e) {
-            $this->dispatch('toast', message: __('Failed to connect to tenant database to fetch users: ') . $e->getMessage(), type: 'error');
+            $this->dispatch('toast', message: __('Failed to connect to tenant database to fetch users: ').$e->getMessage(), type: 'error');
         }
     }
 
@@ -160,20 +167,23 @@ class Index extends Component
             if (empty($this->selectedBaleId)) {
                 $this->fatalError = __('Please select a destination Bale.');
                 $this->isProcessing = false;
+
                 return;
             }
 
             $bale = BaleList::find($this->selectedBaleId);
 
-            if (!$bale) {
+            if (! $bale) {
                 $this->fatalError = __('Selected Bale not found.');
                 $this->isProcessing = false;
+
                 return;
             }
 
             if (empty($this->selectedAuthorId)) {
                 $this->fatalError = __('Please select an Author for the posts.');
                 $this->isProcessing = false;
+
                 return;
             }
 
@@ -187,6 +197,7 @@ class Index extends Component
 
             if ($sqlContent === null) {
                 $this->isProcessing = false;
+
                 return;
             }
 
@@ -195,11 +206,12 @@ class Index extends Component
             if (empty($posts)) {
                 $this->fatalError = __('No publishable WordPress posts found in the SQL dump. Check the file and table prefix.');
                 $this->isProcessing = false;
+
                 return;
             }
 
             // --- Clean & insert each post ---
-            $cleaner = new PostCleanerService();
+            $cleaner = new PostCleanerService;
 
             foreach ($posts as $post) {
                 try {
@@ -215,7 +227,7 @@ class Index extends Component
                         ->exists();
 
                     if ($exists) {
-                        $slug = $slug . '-' . Str::lower(Str::random(5));
+                        $slug = $slug.'-'.Str::lower(Str::random(5));
                     }
 
                     DB::connection($connectionName)->table('posts')->insert([
@@ -234,7 +246,7 @@ class Index extends Component
 
                 } catch (\Throwable $e) {
                     $this->skippedCount++;
-                    $this->importErrors[] = "Row skipped — " . Str::limit($post['post_title'] ?? '(unknown)', 60) . ': ' . $e->getMessage();
+                    $this->importErrors[] = 'Row skipped — '.Str::limit($post['post_title'] ?? '(unknown)', 60).': '.$e->getMessage();
                 }
             }
 
@@ -279,12 +291,14 @@ class Index extends Component
 
             if ($content === false || $content === null) {
                 $this->fatalError = __('Failed to read the uploaded SQL file. Check storage permissions.');
+
                 return null;
             }
 
             return $content;
         } catch (\Throwable $e) {
-            $this->fatalError = __('Failed to read the uploaded SQL file: ') . $e->getMessage();
+            $this->fatalError = __('Failed to read the uploaded SQL file: ').$e->getMessage();
+
             return null;
         }
     }
@@ -302,9 +316,9 @@ class Index extends Component
             ? '[a-zA-Z0-9_]+'
             : preg_quote($this->tablePrefix, '/');
 
-        $pattern = '/INSERT\s+INTO\s+`?' . $prefixPattern . 'posts`?\s*\(([^)]+)\)\s*VALUES\s*(.*?)(?=;\s*(\r?\n|$)|;\s*(?:\/\*|INSERT|UNLOCK|COMMIT|BEGIN|SET|DROP|CREATE))/is';
+        $pattern = '/INSERT\s+INTO\s+`?'.$prefixPattern.'posts`?\s*\(([^)]+)\)\s*VALUES\s*(.*?)(?=;\s*(\r?\n|$)|;\s*(?:\/\*|INSERT|UNLOCK|COMMIT|BEGIN|SET|DROP|CREATE))/is';
 
-        if (!preg_match_all($pattern, $sql, $matches, PREG_SET_ORDER)) {
+        if (! preg_match_all($pattern, $sql, $matches, PREG_SET_ORDER)) {
             return [];
         }
 
@@ -313,7 +327,7 @@ class Index extends Component
             $valuesPart = $match[2];
 
             $columns = array_map(
-                fn($col) => trim(str_replace('`', '', $col)),
+                fn ($col) => trim(str_replace('`', '', $col)),
                 explode(',', $columnsPart)
             );
 
@@ -324,7 +338,7 @@ class Index extends Component
                 $values = $this->parseValueRow($rawRow, count($columns));
                 $row = array_combine($columns, $values);
 
-                if (!$row) {
+                if (! $row) {
                     continue;
                 }
 
@@ -333,6 +347,7 @@ class Index extends Component
 
                 if ($postType !== 'post' || $postStatus !== 'publish') {
                     $this->filteredCount++;
+
                     continue;
                 }
 
@@ -366,16 +381,18 @@ class Index extends Component
 
             if ($escape) {
                 $escape = false;
+
                 continue;
             }
 
             if ($char === '\\' && $inStr) {
                 $escape = true;
+
                 continue;
             }
 
-            if ($char === "'" && !$escape) {
-                $inStr = !$inStr;
+            if ($char === "'" && ! $escape) {
+                $inStr = ! $inStr;
             }
 
             if ($inStr) {
@@ -425,11 +442,13 @@ class Index extends Component
                     default => $char,
                 };
                 $escape = false;
+
                 continue;
             }
 
             if ($char === '\\' && $inStr) {
                 $escape = true;
+
                 continue;
             }
 
@@ -444,12 +463,14 @@ class Index extends Component
                 } else {
                     $inStr = true;
                 }
+
                 continue;
             }
 
-            if (!$inStr && $char === ',') {
+            if (! $inStr && $char === ',') {
                 $values[] = $current;
                 $current = '';
+
                 continue;
             }
 
@@ -466,6 +487,7 @@ class Index extends Component
             if (str_starts_with($trimmed, "'") && str_ends_with($trimmed, "'")) {
                 return substr($trimmed, 1, -1);
             }
+
             return $trimmed;
         }, $values);
 
@@ -482,7 +504,7 @@ class Index extends Component
 
     public function checkAccess(): void
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             abort(403);
         }
     }
@@ -492,7 +514,7 @@ class Index extends Component
      */
     private function setupTenantConnection(BaleList $bale): string
     {
-        $connectionName = 'bale_wp_migrator_' . str_replace('-', '_', $bale->id);
+        $connectionName = 'bale_wp_migrator_'.str_replace('-', '_', $bale->id);
 
         config([
             "database.connections.{$connectionName}" => [
@@ -515,7 +537,7 @@ class Index extends Component
     // Render
     // -----------------------------------------------------------------------
 
-    public function render(): \Illuminate\View\View
+    public function render(): View
     {
         return view('core::livewire.pages.wp-tools.sql-migrator.index', [
             'baleLists' => $this->getBaleListsProperty(),

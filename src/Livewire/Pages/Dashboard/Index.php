@@ -2,8 +2,9 @@
 
 namespace Bale\Core\Livewire\Pages\Dashboard;
 
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
-use Livewire\Attributes\{Layout, Title};
 
 #[Layout('core::layouts.app')]
 #[Title('Dashboard')]

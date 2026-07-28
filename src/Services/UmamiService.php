@@ -2,7 +2,9 @@
 
 namespace Bale\Core\Services;
 
+use Bale\Cms\Services\TenantConnectionService;
 use Illuminate\Cache\Repository as CacheRepository;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -54,7 +56,7 @@ class UmamiService
      * tidak ada browser fingerprint. Header Accept + User-Agent yang
      * menyerupai browser cukup untuk melewati managed challenge.
      */
-    protected function httpClient(): \Illuminate\Http\Client\PendingRequest
+    protected function httpClient(): PendingRequest
     {
         return Http::withToken($this->apiKey)
             ->timeout(15)
@@ -69,23 +71,24 @@ class UmamiService
      *
      * @param  int  $days  Jumlah hari terakhir yang ingin diambil datanya
      * @param  string|null  $url  URL path filter (misal: /loker/my-slug)
-     * @return array|null  Null jika tidak dikonfigurasi atau Umami tidak tersedia
+     * @return array|null Null jika tidak dikonfigurasi atau Umami tidak tersedia
      */
     public function getStats($days = 7, ?string $url = null): ?array
     {
         $config = $this->getAnalyticsConfig();
 
-        if (!$config) {
+        if (! $config) {
             return null;
         }
 
         if (empty($this->baseUrl) || empty($this->apiKey)) {
             Log::warning('[UmamiService] Konfigurasi Umami tidak lengkap (UMAMI_URL / UMAMI_API_KEY).');
+
             return null;
         }
 
         $cacheKeyString = is_array($days) ? implode('_', $days) : $days;
-        $cacheKey = "umami_stats_{$config->bale_id}_{$cacheKeyString}" . ($url ? "_" . md5($url) : "");
+        $cacheKey = "umami_stats_{$config->bale_id}_{$cacheKeyString}".($url ? '_'.md5($url) : '');
         $cacheStore = $this->getTenantCacheStore();
 
         return $cacheStore->remember($cacheKey, $this->cacheTtl, function () use ($config, $days, $url) {
@@ -110,6 +113,7 @@ class UmamiService
                         'status' => $response->status(),
                         'body' => $response->body(),
                     ]);
+
                     return null;
                 }
 
@@ -118,6 +122,7 @@ class UmamiService
                 Log::error('[UmamiService] getStats exception', [
                     'message' => $e->getMessage(),
                 ]);
+
                 return null;
             }
         });
@@ -128,23 +133,24 @@ class UmamiService
      *
      * @param  mixed  $days  Jumlah hari terakhir (int) atau array [$startAt, $endAt]
      * @param  string|null  $url  URL path filter (misal: /loker/my-slug)
-     * @return array|null  Null jika tidak dikonfigurasi atau Umami tidak tersedia
+     * @return array|null Null jika tidak dikonfigurasi atau Umami tidak tersedia
      */
     public function getPageviews($days = 7, ?string $url = null): ?array
     {
         $config = $this->getAnalyticsConfig();
 
-        if (!$config) {
+        if (! $config) {
             return null;
         }
 
         if (empty($this->baseUrl) || empty($this->apiKey)) {
             Log::warning('[UmamiService] Konfigurasi Umami tidak lengkap (UMAMI_URL / UMAMI_API_KEY).');
+
             return null;
         }
 
         $cacheKeyString = is_array($days) ? implode('_', $days) : $days;
-        $cacheKey = "umami_pageviews_{$config->bale_id}_{$cacheKeyString}" . ($url ? "_" . md5($url) : "");
+        $cacheKey = "umami_pageviews_{$config->bale_id}_{$cacheKeyString}".($url ? '_'.md5($url) : '');
         $cacheStore = $this->getTenantCacheStore();
 
         return $cacheStore->remember($cacheKey, $this->cacheTtl, function () use ($config, $days, $url) {
@@ -171,6 +177,7 @@ class UmamiService
                         'status' => $response->status(),
                         'body' => $response->body(),
                     ]);
+
                     return null;
                 }
 
@@ -179,11 +186,11 @@ class UmamiService
                 Log::error('[UmamiService] getPageviews exception', [
                     'message' => $e->getMessage(),
                 ]);
+
                 return null;
             }
         });
     }
-
 
     /**
      * Ambil URL metrics dari Umami (total pageviews per URL path).
@@ -194,20 +201,20 @@ class UmamiService
      *
      * Response: [{x: '/jobs/slug', y: 9}, {x: '/jobs/other', y: 3}, ...]
      *
-     * @param  int  $days   Jumlah hari terakhir
+     * @param  int  $days  Jumlah hari terakhir
      * @param  int  $limit  Batas jumlah URL (default 500)
-     * @return array|null
      */
     public function getUrlMetrics(int $days = 30, int $limit = 500): ?array
     {
         $config = $this->getAnalyticsConfig();
 
-        if (!$config) {
+        if (! $config) {
             return null;
         }
 
         if (empty($this->baseUrl) || empty($this->apiKey)) {
             Log::warning('[UmamiService] Konfigurasi Umami tidak lengkap (UMAMI_URL / UMAMI_API_KEY).');
+
             return null;
         }
 
@@ -221,16 +228,17 @@ class UmamiService
                 $response = $this->httpClient()
                     ->get("{$this->baseUrl}/api/websites/{$config->website_id}/metrics", [
                         'startAt' => $startAt,
-                        'endAt'   => $endAt,
-                        'type'    => 'url',
-                        'limit'   => $limit,
+                        'endAt' => $endAt,
+                        'type' => 'url',
+                        'limit' => $limit,
                     ]);
 
                 if ($response->failed()) {
                     Log::error('[UmamiService] getUrlMetrics failed', [
                         'status' => $response->status(),
-                        'body'   => $response->body(),
+                        'body' => $response->body(),
                     ]);
+
                     return null;
                 }
 
@@ -239,11 +247,11 @@ class UmamiService
                 Log::error('[UmamiService] getUrlMetrics exception', [
                     'message' => $e->getMessage(),
                 ]);
+
                 return null;
             }
         });
     }
-
 
     /**
      * Ambil konfigurasi analytics dari tabel tenant_analytics di main DB
@@ -253,7 +261,7 @@ class UmamiService
     {
         $baleId = session('bale_active_uuid');
 
-        if (!$baleId) {
+        if (! $baleId) {
             return null;
         }
 
@@ -269,6 +277,7 @@ class UmamiService
             Log::error('[UmamiService] Gagal membaca tenant_analytics', [
                 'message' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -281,7 +290,7 @@ class UmamiService
     {
         try {
             // Gunakan tenant DB connection yang sudah diaktifkan oleh TenantManager
-            $tenantConnection = \Bale\Cms\Services\TenantConnectionService::connection();
+            $tenantConnection = TenantConnectionService::connection();
 
             return Cache::store(
                 $this->resolveTenantCacheDriver($tenantConnection)
@@ -301,7 +310,7 @@ class UmamiService
         $storeName = "umami_tenant_{$connection}";
 
         // Daftarkan cache store dinamis jika belum ada
-        if (!config("cache.stores.{$storeName}")) {
+        if (! config("cache.stores.{$storeName}")) {
             config([
                 "cache.stores.{$storeName}" => [
                     'driver' => 'database',
@@ -329,7 +338,7 @@ class UmamiService
         }
         $now = now($this->timezone);
         $endAt = $now->copy()->endOfDay()->getTimestampMs();
-        $startAt = $now->copy()->subDays((int)$days - 1)->startOfDay()->getTimestampMs();
+        $startAt = $now->copy()->subDays((int) $days - 1)->startOfDay()->getTimestampMs();
 
         return [$startAt, $endAt];
     }

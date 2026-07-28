@@ -3,22 +3,28 @@
 namespace Bale\Core\Livewire\Pages\AuthenticationLog;
 
 use Bale\Core\Models\AuthenticationLog;
+use Livewire\Attributes\Computed;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
-use Livewire\Attributes\{Layout, Title, Computed};
 
 #[Layout('core::layouts.app')]
 #[Title('Edit Authentication Log')]
 class Edit extends Component
 {
     public $logId;
+
     public $ip_address;
+
     public $user_agent;
+
     public $login_at;
+
     public $logout_at;
 
     public function mount($id)
     {
-        if (!auth()->user()->can('authentication-log.update')) {
+        if (! auth()->user()->can('authentication-log.update')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -33,7 +39,7 @@ class Edit extends Component
 
     public function render()
     {
-        if (!auth()->user()->can('authentication-log.update')) {
+        if (! auth()->user()->can('authentication-log.update')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -48,7 +54,7 @@ class Edit extends Component
 
     public function update()
     {
-        if (!auth()->user()->can('authentication-log.update')) {
+        if (! auth()->user()->can('authentication-log.update')) {
             abort(403, 'Unauthorized action.');
         }
 

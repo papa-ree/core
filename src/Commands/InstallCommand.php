@@ -71,6 +71,9 @@ class InstallCommand extends Command
             'authentication-log.read',
             'authentication-log.update',
             'authentication-log.delete',
+            'activity-log.read',
+            'activity-log.delete',
+            'activity-log.export',
             'dashboard',
         ];
 
@@ -101,6 +104,7 @@ class InstallCommand extends Command
             $this->info('Root user already exists. Skipping creation questions.');
             $user = User::where('username', 'root')->first();
             $user->assignRole('root');
+
             return;
         }
 
@@ -111,6 +115,7 @@ class InstallCommand extends Command
 
         if (empty($password)) {
             $this->error('Password cannot be empty!');
+
             return;
         }
 

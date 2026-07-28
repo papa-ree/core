@@ -2,17 +2,21 @@
 
 namespace Bale\Core\Livewire\Pages\RoleManagement;
 
+use Livewire\Attributes\Computed;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
-use Livewire\Attributes\{Layout, Title, Computed};
+use Spatie\Permission\Models\Role;
 
 #[Layout('core::layouts.app')]
 #[Title('Edit Role')]
 class Edit extends Component
 {
     public $roleId;
+
     public $name;
+
     public $guard_name;
 
     // Permission assignment
@@ -20,7 +24,7 @@ class Edit extends Component
 
     public function mount($id)
     {
-        if (!auth()->user()->can('role.update')) {
+        if (! auth()->user()->can('role.update')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -41,12 +45,12 @@ class Edit extends Component
 
     public function save()
     {
-        if (!auth()->user()->can('role.update')) {
+        if (! auth()->user()->can('role.update')) {
             abort(403, 'Unauthorized action.');
         }
 
         $this->validate([
-            'name' => 'required|unique:roles,name,' . $this->roleId,
+            'name' => 'required|unique:roles,name,'.$this->roleId,
             'guard_name' => 'required',
         ]);
 
@@ -60,6 +64,7 @@ class Edit extends Component
         $role->syncPermissions($this->selectedPermissions);
 
         session()->flash('message', 'Role updated successfully.');
+
         return $this->redirect(route('role.index'), navigate: true);
     }
 

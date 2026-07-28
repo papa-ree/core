@@ -2,8 +2,12 @@
 
 namespace Bale\Core\Livewire\SharedComponents;
 
+use Livewire\Attributes\Computed;
+use Livewire\Attributes\Layout;
 use Livewire\Component;
-use Livewire\Attributes\{Computed, Layout};
+use Nawasara\Frasasti\FrasastiServiceProvider;
+use Nawasara\Kosadata\Livewire\Pages\Overview\Index;
+use Paparee\Rakaca\RakacaServiceProvider;
 
 #[Layout('core::layouts.app')]
 class LandlordSidebar extends Component
@@ -38,7 +42,7 @@ class LandlordSidebar extends Component
             $menu[] = [
                 'label' => __('Role'),
                 'url' => 'roles',
-                'icon' => 'shield',
+                'icon' => 'user-key',
             ];
         }
 
@@ -56,7 +60,16 @@ class LandlordSidebar extends Component
             $menu[] = [
                 'label' => __('Authentication Log'),
                 'url' => 'authentication-logs',
-                'icon' => 'history',
+                'icon' => 'rotate-ccw-key',
+            ];
+        }
+
+        // Activity Log
+        if (auth()->check() && auth()->user()->can('activity-log.read')) {
+            $menu[] = [
+                'label' => __('Activity Log'),
+                'url' => 'activity-logs',
+                'icon' => 'folder-clock',
             ];
         }
 
@@ -68,13 +81,23 @@ class LandlordSidebar extends Component
         ];
 
         // Add Rakaca Menus if package exists
-        if (class_exists(\Paparee\Rakaca\RakacaServiceProvider::class)) {
+        if (class_exists(RakacaServiceProvider::class)) {
             // Add Rakaca Service Management
             if (auth()->check() && auth()->user()->can('service.read')) {
                 $menu[] = [
                     'label' => __('Service'),
                     'url' => 'rakaca/services',
                     'icon' => 'layers',
+                    'group' => 'rakaca',
+                ];
+            }
+
+            // Add Rakaca Form Management
+            if (auth()->check() && auth()->user()->can('form.read')) {
+                $menu[] = [
+                    'label' => __('Formulir'),
+                    'url' => 'rakaca/forms',
+                    'icon' => 'clipboard-list',
                     'group' => 'rakaca',
                 ];
             }
@@ -101,7 +124,7 @@ class LandlordSidebar extends Component
         }
 
         // Add Frasasti Menus if package exists
-        if (class_exists(\Nawasara\Frasasti\FrasastiServiceProvider::class)) {
+        if (class_exists(FrasastiServiceProvider::class)) {
             // Overview
             $menu[] = [
                 'label' => __('Overview'),
@@ -132,7 +155,7 @@ class LandlordSidebar extends Component
         }
 
         // Add Bale CMS Menus if package exists
-        if (class_exists(\Paparee\Rakaca\RakacaServiceProvider::class)) {
+        if (class_exists(RakacaServiceProvider::class)) {
             // Add Organization Management
             if (auth()->check() && auth()->user()->can('organization.read')) {
                 $menu[] = [
@@ -184,24 +207,21 @@ class LandlordSidebar extends Component
         $menu = [];
 
         $conditionalMenus = [
-            \Nawasara\Kosadata\Livewire\Pages\Overview\Index::class =>
-                [
-                    'label' => 'Overview',
-                    'url' => 'internet-desa-overview',
-                    'icon' => 'activity',
-                ],
-            \Nawasara\Kosadata\Livewire\Pages\InternetProvider\Index::class =>
-                [
-                    'label' => 'Internet Provider',
-                    'url' => 'internet-provider',
-                    'icon' => 'globe',
-                ],
-            \Nawasara\Kosadata\Livewire\Pages\IspDesa\Index::class =>
-                [
-                    'label' => 'ISP Desa',
-                    'url' => 'isp-desa',
-                    'icon' => 'network',
-                ],
+            Index::class => [
+                'label' => 'Overview',
+                'url' => 'internet-desa-overview',
+                'icon' => 'activity',
+            ],
+            \Nawasara\Kosadata\Livewire\Pages\InternetProvider\Index::class => [
+                'label' => 'Internet Provider',
+                'url' => 'internet-provider',
+                'icon' => 'globe',
+            ],
+            \Nawasara\Kosadata\Livewire\Pages\IspDesa\Index::class => [
+                'label' => 'ISP Desa',
+                'url' => 'isp-desa',
+                'icon' => 'network',
+            ],
         ];
 
         foreach ($conditionalMenus as $class => $item) {
@@ -212,5 +232,4 @@ class LandlordSidebar extends Component
 
         return $menu;
     }
-
 }

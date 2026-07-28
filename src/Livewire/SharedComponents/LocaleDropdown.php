@@ -3,16 +3,18 @@
 namespace Bale\Core\Livewire\SharedComponents;
 
 use Livewire\Component;
+use Mcamara\LaravelLocalization\Facades\LaravelLocalization;
 
 class LocaleDropdown extends Component
 {
     public $currentLocale;
+
     public $supportedLocales;
 
     public function mount()
     {
         $this->currentLocale = app()->getLocale();
-        $this->supportedLocales = \Mcamara\LaravelLocalization\Facades\LaravelLocalization::getSupportedLocales();
+        $this->supportedLocales = LaravelLocalization::getSupportedLocales();
     }
 
     public function changeLocale($locale)

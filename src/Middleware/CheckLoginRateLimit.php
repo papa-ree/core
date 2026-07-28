@@ -5,13 +5,12 @@ namespace Bale\Core\Middleware;
 use Bale\Core\Services\LoginSecurityService;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
 class CheckLoginRateLimit
 {
-    public function __construct(protected LoginSecurityService $security)
-    {
-    }
+    public function __construct(protected LoginSecurityService $security) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -27,7 +26,7 @@ class CheckLoginRateLimit
                 ->with('lockout_reason', $ipCheck['reason']);
         }
 
-        if (!$username) {
+        if (! $username) {
             return $next($request);
         }
 
@@ -57,7 +56,8 @@ class CheckLoginRateLimit
 
     protected function getLockSecondsFromCache(string $username, string $ip): int
     {
-        $lockKey = 'login_attempt:lock:' . md5($username . ':' . $ip);
-        return (int) \Illuminate\Support\Facades\Cache::get($lockKey, 0);
+        $lockKey = 'login_attempt:lock:'.md5($username.':'.$ip);
+
+        return (int) Cache::get($lockKey, 0);
     }
 }
