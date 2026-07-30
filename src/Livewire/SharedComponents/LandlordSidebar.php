@@ -5,6 +5,7 @@ namespace Bale\Core\Livewire\SharedComponents;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Bale\GupaPanel\GupaPanelServiceProvider;
 use Nawasara\Frasasti\FrasastiServiceProvider;
 use Nawasara\Kosadata\Livewire\Pages\Overview\Index;
 use Paparee\Rakaca\RakacaServiceProvider;
@@ -150,6 +151,67 @@ class LandlordSidebar extends Component
                     'url' => 'frasasti/contacts',
                     'icon' => 'users',
                     'group' => 'frasasti',
+                ];
+            }
+        }
+
+        // Add GupaPanel Menus if package exists
+        if (class_exists(GupaPanelServiceProvider::class)) {
+            // Overview
+            $menu[] = [
+                'label' => __('Overview'),
+                'url' => 'gupa-panel/overview',
+                'icon' => 'bar-chart-3',
+                'group' => 'gupa-panel',
+            ];
+
+            // Blacklist
+            if (auth()->check() && auth()->user()->can('gupa-panel.blacklist.read')) {
+                $menu[] = [
+                    'label' => __('Blacklist'),
+                    'url' => 'gupa-panel/blacklist',
+                    'icon' => 'list-minus',
+                    'group' => 'gupa-panel',
+                ];
+            }
+
+            // Whitelist
+            if (auth()->check() && auth()->user()->can('gupa-panel.whitelist.read')) {
+                $menu[] = [
+                    'label' => __('Whitelist'),
+                    'url' => 'gupa-panel/whitelist',
+                    'icon' => 'list-plus',
+                    'group' => 'gupa-panel',
+                ];
+            }
+
+            // Blocked IPs
+            if (auth()->check() && auth()->user()->can('gupa-panel.blocked-ip.read')) {
+                $menu[] = [
+                    'label' => __('Blocked IPs'),
+                    'url' => 'gupa-panel/blocked-ips',
+                    'icon' => 'shield-x',
+                    'group' => 'gupa-panel',
+                ];
+            }
+
+            // False Positive Review
+            if (auth()->check() && auth()->user()->can('gupa-panel.false-positive.review')) {
+                $menu[] = [
+                    'label' => __('False Positive Review'),
+                    'url' => 'gupa-panel/review-false-positive',
+                    'icon' => 'check-circle',
+                    'group' => 'gupa-panel',
+                ];
+            }
+
+            // Sync Management
+            if (auth()->check() && auth()->user()->can('gupa-panel.sync.manual')) {
+                $menu[] = [
+                    'label' => __('Sync Management'),
+                    'url' => 'gupa-panel/sync',
+                    'icon' => 'refresh-cw',
+                    'group' => 'gupa-panel',
                 ];
             }
         }
