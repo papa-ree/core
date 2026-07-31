@@ -214,6 +214,16 @@ class LandlordSidebar extends Component
                     'group' => 'gupa-panel',
                 ];
             }
+
+            // Known Crawlers
+            if (auth()->check() && auth()->user()->can('gupa-panel.known-crawler.read')) {
+                $menu[] = [
+                    'label' => __('Known Crawlers'),
+                    'url' => 'gupa-panel/known-crawlers',
+                    'icon' => 'bot',
+                    'group' => 'gupa-panel',
+                ];
+            }
         }
 
         // Add Bale CMS Menus if package exists
