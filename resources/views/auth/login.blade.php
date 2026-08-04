@@ -177,7 +177,8 @@
                         d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
             </div>
-            <h1 class="shimmer-brand text-3xl font-extrabold tracking-tight">BALé CMS</h1>
+            <h1 class="shimmer-brand text-3xl font-extrabold tracking-tight">Rakaca</h1>
+            <h2 class="text-lg font-extrabold text-gray-200 mt-1">dari BALÉ</h2>
             <p class="text-white/60 text-sm mt-1">{{ __('Content Management System') }}</p>
         </div>
 
@@ -227,13 +228,11 @@ Left: branding panel | Right: login form
                     </svg>
                 </div>
 
-                <h1 class="shimmer-brand text-5xl xl:text-6xl font-extrabold tracking-tight leading-tight mb-4">
-                    BALé CMS
+                <h1 class="shimmer-brand text-5xl xl:text-6xl font-extrabold tracking-tight leading-tight">
+                    Rakaca
                 </h1>
 
-                <p class="text-white/70 text-lg xl:text-xl max-w-lg leading-relaxed">
-                    {{ __('Content Management System yang modern dan powerful dari Dinas Kominfo dan Statistik Kabupaten Ponorogo') }}
-                </p>
+                <h2 class="text-base max-w-lg leading-relaxed text-white/70">dari BALÉ</h2>
             </div>
 
             {{-- Feature list --}}
@@ -257,31 +256,33 @@ Left: branding panel | Right: login form
                     ] as $feature)
                     <div class="flex items-start gap-4">
                         <div class="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl mt-0.5"
-                             style="background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.15);">
+                            style="background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.15);">
                             <svg class="w-4 h-4 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $feature['icon'] }}" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="{{ $feature['icon'] }}" />
                             </svg>
                         </div>
                         <div>
-                          <p class="font-semibold text-white/90 text-sm leading-tight mb-1">{{ $feature['title'] }}</p>
+                            <p class="font-semibold text-white/90 text-sm leading-tight mb-1">{{ $feature['title'] }}</p>
                             <p class="text-white/55 text-xs leading-relaxed max-w-[280px]">{{ $feature['desc'] }}</p>
                         </div>
                     </div>
                 @endforeach
             </div>
-                {{-- Bottom badge --}}
+            {{-- Bottom badge --}}
             <div class="mt-14">
-                <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest"
-                      style="background: rgba(167,139,250,0.15); border: 1px solid rgba(167,139,250,0.30); color: #c4b5fd;">
-                        <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
-                    {{ __('BALé CMS on Dinas Kominfo dan Statistik Kabupaten Ponorogo') }}
+                <span
+                    class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest"
+                    style="background: rgba(167,139,250,0.15); border: 1px solid rgba(167,139,250,0.30); color: #c4b5fd;">
+                    <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
+                    {{ __('Ekosistem BALé Dinas Kominfo dan Statistik Kabupaten Ponorogo') }}
                 </span>
             </div>
         </div>
     </div>
 
     {{-- ── RIGHT: Login Form Panel ─────────────────────── --}}
-        <div class="flex items-center justify-center w-[45%] xl:w-2/5 px-8 xl:px-14 bg-white dark:bg-gray-900">
+    <div class="flex items-center justify-center w-[45%] xl:w-2/5 px-8 xl:px-14 bg-white dark:bg-gray-900">
         <div class="w-full max-w-md">
             {{-- Card header --}}
             <div class="mb-8">
@@ -289,34 +290,37 @@ Left: branding panel | Right: login form
                 <p class="text-gray-500 dark:text-gray-400 text-sm">{{ __('Masuk ke akun Anda untuk melanjutkan') }}</p>
             </div>
 
-                @include('core::auth._login-form-inner', ['dark' => false])
+            @include('core::auth._login-form-inner', ['dark' => false])
 
-                {{-- Footer --}}
-                <p class="mt-8 text-xs text-center text-gray-400 dark:text-gray-600">
-                    &copy; {{ date('Y') }} Dinas Kominfo dan Statistik Kabupaten Ponorogo
-                </p>
-            </div>
+            {{-- Footer --}}
+            <p class="mt-8 text-xs text-center text-gray-400 dark:text-gray-600">
+                &copy; {{ date('Y') }} Dinas Kominfo dan Statistik Kabupaten Ponorogo
+            </p>
         </div>
     </div>
- 
-           
- 
 </div>
-  
-  <script>
-    function loginPage() {
-        return {
-             recaptchaValue: '',
-              showPassword: false,
 
-            init() {
-                const observer = new MutationObserver(() => {
-                    const input = document.querySelector('input[name="g-recaptcha-response"]');
-                    if (input) {
+
+
+</div>
+
+<script>
+    function loginPage ()
+    {
+        return {
+            recaptchaValue: '',
+            showPassword: false,
+
+            init ()
+            {
+                const observer = new MutationObserver( () =>
+                {
+                    const input = document.querySelector( 'input[name="g-recaptcha-response"]' );
+                    if ( input ) {
                         this.recaptchaValue = input.value || '';
                     }
-                });
-                observer.observe(document.body, { subtree: true, attributes: true });
+                } );
+                observer.observe( document.body, { subtree: true, attributes: true } );
             },
         };
     }

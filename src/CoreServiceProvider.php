@@ -10,6 +10,7 @@ use Bale\Core\Middleware\CheckKeycloakSession;
 use Bale\Core\Middleware\CheckLoginRateLimit;
 use Bale\Core\Middleware\SetLocale;
 use Bale\Core\Middleware\VerifyCaptcha;
+use Bale\Core\Services\MenuRegistry;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schedule;
@@ -37,6 +38,10 @@ class CoreServiceProvider extends ServiceProvider
             __DIR__.'/../config/core.php',
             'core'
         );
+
+        // Daftarkan MenuRegistry sebagai singleton agar state-nya persisten
+        // selama satu request lifecycle.
+        $this->app->singleton(MenuRegistry::class);
 
         $this->registerCommands();
     }
@@ -91,6 +96,7 @@ class CoreServiceProvider extends ServiceProvider
             $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
             $this->configureActivityLog();
             $this->registerSchedule();
+            $this->discoverPackageMenus();
         });
 
         $this->offerPublishing();
@@ -270,5 +276,24 @@ class CoreServiceProvider extends ServiceProvider
             $days = config('activitylog.clean_after_days', 90);
             app(CleanActivityLogAction::class)->execute($days);
         })->dailyAt('02:00')->timezone('Asia/Jakarta');
+    }
+
+    /**
+     * Auto-discover file menu.php dari semua ServiceProvider yang terdaftar.
+     * Hanya provider dengan namespace Bale\, Nawasara\, atau Paparee\ yang diproses.
+     */
+    protected function discoverPackageMenus(): void
+    {
+        $registry = $this->app->make(MenuRegistry::class);
+
+        foreach (array_keys($this->app->getLoadedProviders()) as $provider) {
+            if (
+                str_starts_with($provider, 'Bale\\') ||
+                str_starts_with($provider, 'Nawasara\\') ||
+                str_starts_with($provider, 'Paparee\\')
+            ) {
+                $registry->registerFromProvider($provider);
+            }
+        }
     }
 }
