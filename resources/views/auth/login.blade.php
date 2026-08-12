@@ -170,7 +170,8 @@
     style="background: linear-gradient(140deg, #0f0c29 0%, #302b63 50%, #24243e 100%);" x-cloak>
 
     {{-- Aurora wave background (full viewport coverage) --}}
-    <canvas id="bg-canvas" class="absolute left-0 top-0 pointer-events-none z-0 w-full h-full" aria-hidden="true"></canvas>
+    <canvas id="bg-canvas" class="absolute left-0 top-0 pointer-events-none z-0 w-full h-full"
+        aria-hidden="true"></canvas>
 
     {{-- Hidden theme toggle button to bridge Preline theme toggle with Aurora JS --}}
     <button id="themeToggle" class="hidden" aria-hidden="true"></button>
@@ -229,7 +230,7 @@ Left: branding panel | Right: login form
             {{-- Logo + Name --}}
 
             <a href="/" class="flex mb-10 gap-x-3 items-center w-fit">
-                <x-rakaca::aurora.brand-mark class="size-20 shimmer-brand" />
+                <x-bale-rakaca::aurora.brand-mark class="size-20 shimmer-brand" />
                 <div class="w-fit -space-y-3">
                     <h1 class="shimmer-brand text-4xl xl:text-5xl font-extrabold tracking-tight leading-tight">
                         Rakaca
@@ -287,7 +288,8 @@ Left: branding panel | Right: login form
     </div>
 
     {{-- ── RIGHT: Login Form Panel ─────────────────────── --}}
-    <div class="relative z-10 flex items-center justify-center w-[45%] xl:w-2/5 px-8 xl:px-14 glass-card border-l-0 lg:border-l border-white/10">
+    <div
+        class="relative z-10 flex items-center justify-center w-[45%] xl:w-2/5 px-8 xl:px-14 glass-card border-l-0 lg:border-l border-white/10">
         <div class="w-full max-w-md">
             {{-- Card header --}}
             <div class="mb-8">
@@ -329,12 +331,14 @@ Left: branding panel | Right: login form
 
                 // Dispatch window resize events to let Three.js / aurora.js recalculate dimensions
                 // once Alpine.js initializes and removes the x-cloak wrapper.
-                setTimeout(() => {
-                    window.dispatchEvent(new Event('resize'));
-                }, 100);
-                setTimeout(() => {
-                    window.dispatchEvent(new Event('resize'));
-                }, 400);
+                setTimeout( () =>
+                {
+                    window.dispatchEvent( new Event( 'resize' ) );
+                }, 100 );
+                setTimeout( () =>
+                {
+                    window.dispatchEvent( new Event( 'resize' ) );
+                }, 400 );
             },
         };
     }
@@ -347,29 +351,33 @@ Left: branding panel | Right: login form
 @vite(['resources/js/aurora.js'])
 
 <script>
-    (function () {
+    ( function ()
+    {
         // Sync class 'dark' on html to 'data-theme' attribute so aurora.js reads the correct theme
-        function syncTheme() {
-            const isDark = document.documentElement.classList.contains('dark');
-            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        function syncTheme ()
+        {
+            const isDark = document.documentElement.classList.contains( 'dark' );
+            document.documentElement.setAttribute( 'data-theme', isDark ? 'dark' : 'light' );
         }
 
         // Initial theme sync
         syncTheme();
 
         // Listen for Preline UI theme toggle class mutations
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.attributeName === 'class') {
+        const observer = new MutationObserver( ( mutations ) =>
+        {
+            mutations.forEach( ( mutation ) =>
+            {
+                if ( mutation.attributeName === 'class' ) {
                     syncTheme();
                     // Dispatch click to hidden themeToggle button to trigger aurora.js updates
-                    const dummyToggle = document.getElementById('themeToggle');
-                    if (dummyToggle) {
+                    const dummyToggle = document.getElementById( 'themeToggle' );
+                    if ( dummyToggle ) {
                         dummyToggle.click();
                     }
                 }
-            });
-        });
-        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    })();
+            } );
+        } );
+        observer.observe( document.documentElement, { attributes: true, attributeFilter: [ 'class' ] } );
+    } )();
 </script>
