@@ -17,6 +17,7 @@ new class extends Component {
     public string $connectionResolver = '';
     public string $deleteEvent        = 'deleteItem';
     public string $rowView            = '';
+    public string $cardView           = '';
 
     #[Url(history: true)]
     public string $query = '';
@@ -52,6 +53,7 @@ new class extends Component {
         string $sortDirection      = 'desc',
         int    $perPage            = 20,
         string $deleteEvent        = 'deleteItem',
+        string $cardView           = '',
     ): void {
         $this->model               = $model;
         $this->rowView             = $rowView;
@@ -65,6 +67,7 @@ new class extends Component {
         $this->sortDirection       = $sortDirection;
         $this->perPage             = $perPage;
         $this->deleteEvent         = $deleteEvent;
+        $this->cardView            = $cardView;
     }
 
     public function sort(string $field): void
@@ -273,84 +276,96 @@ new class extends Component {
         {{-- END TOOLBAR --}}
 
 
-        {{-- TABLE --}}
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700/60">
-                <thead class="bg-gray-50/70 dark:bg-gray-800/50">
-                    <tr>
-                        @foreach($columns as $col)
-                            @php
-                                $hiddenClass = match($col['hidden'] ?? null) {
-                                    'sm'  => 'hidden sm:table-cell',
-                                    'md'  => 'hidden md:table-cell',
-                                    'lg'  => 'hidden lg:table-cell',
-                                    'xl'  => 'hidden xl:table-cell',
-                                    default => '',
-                                };
-                                $isSortable = $col['sortable'] ?? false;
-                                $isActive   = $sortField === $col['key'];
-                            @endphp
-                            <th scope="col" class="px-4 py-3 text-left whitespace-nowrap {{ $hiddenClass }} {{ $col['class'] ?? '' }}">
-                                @if($isSortable)
-                                    <button type="button" wire:click="sort('{{ $col['key'] }}')"
-                                        class="group inline-flex items-center gap-x-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none transition-colors">
-                                        {{ $col['label'] }}
-                                        <span class="flex-none">
-                                            @if($isActive && $sortDirection === 'asc')
-                                                <svg class="size-3.5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m18 15-6-6-6 6"/></svg>
-                                            @elseif($isActive && $sortDirection === 'desc')
-                                                <svg class="size-3.5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
-                                            @else
-                                                <svg class="size-3.5 opacity-0 group-hover:opacity-40 transition-opacity text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
-                                            @endif
-                                        </span>
-                                    </button>
-                                @else
-                                    <span class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ $col['label'] }}</span>
-                                @endif
-                            </th>
-                        @endforeach
-                    </tr>
-                </thead>
-
-                <tbody
-                    wire:loading.class="opacity-40 pointer-events-none select-none"
-                    wire:target="sort,nextPage,previousPage,gotoPage,updatedPerPage,deleteItem,resetFilter,resetAllFilters,query"
-                    class="divide-y divide-gray-100 dark:divide-gray-700/60 bg-white dark:bg-gray-900 transition-opacity duration-200">
-                    @if($this->records->isEmpty())
-                        <tr>
-                            <td colspan="{{ count($columns) }}" class="px-6 py-16 text-center">
-                                <div class="flex flex-col items-center gap-3">
-                                    @if($query)
-                                        <div class="size-14 rounded-full bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
-                                            <svg class="size-7 text-amber-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v4M11 16h.01"/></svg>
-                                        </div>
-                                        <div>
-                                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">No results found</p>
-                                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">No items matched "<span class="font-medium text-gray-600 dark:text-gray-400">{{ $query }}</span>"</p>
-                                        </div>
-                                        <button type="button" wire:click="$set('query', '')" class="mt-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 hover:underline transition-colors">Clear search</button>
-                                    @else
-                                        <div class="size-14 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                                            <svg class="size-7 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
-                                        </div>
-                                        <div>
-                                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">No data yet</p>
-                                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Get started by adding your first item.</p>
-                                        </div>
-                                    @endif
-                                </div>
-                            </td>
-                        </tr>
+        {{-- TABLE / CARDS --}}
+        @if($this->records->isEmpty())
+            <div class="px-6 py-16 text-center">
+                <div class="flex flex-col items-center gap-3">
+                    @if($query)
+                        <div class="size-14 rounded-full bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+                            <svg class="size-7 text-amber-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v4M11 16h.01"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">No results found</p>
+                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">No items matched "<span class="font-medium text-gray-600 dark:text-gray-400">{{ $query }}</span>"</p>
+                        </div>
+                        <button type="button" wire:click="$set('query', '')" class="mt-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 hover:underline transition-colors">Clear search</button>
                     @else
+                        <div class="size-14 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                            <svg class="size-7 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">No data yet</p>
+                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Get started by adding your first item.</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        @else
+            @if($cardView)
+                {{-- MOBILE CARDS --}}
+                <div class="md:hidden divide-y divide-gray-100 dark:divide-gray-700/60 bg-white dark:bg-gray-900 transition-opacity duration-200"
+                    wire:loading.class="opacity-40 pointer-events-none select-none"
+                    wire:target="sort,nextPage,previousPage,gotoPage,updatedPerPage,deleteItem,resetFilter,resetAllFilters,query">
+                    @foreach($this->records as $record)
+                        <div wire:key="card-{{ $record->getKey() }}">
+                            @include($cardView, ['record' => $record])
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
+            {{-- DESKTOP TABLE --}}
+            <div class="{{ $cardView ? 'hidden md:block' : '' }} overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-700/60">
+                    <thead class="bg-gray-50/70 dark:bg-gray-800/50">
+                        <tr>
+                            @foreach($columns as $col)
+                                @php
+                                    $hiddenClass = match($col['hidden'] ?? null) {
+                                        'sm'  => 'hidden sm:table-cell',
+                                        'md'  => 'hidden md:table-cell',
+                                        'lg'  => 'hidden lg:table-cell',
+                                        'xl'  => 'hidden xl:table-cell',
+                                        default => '',
+                                    };
+                                    $isSortable = $col['sortable'] ?? false;
+                                    $isActive   = $sortField === $col['key'];
+                                @endphp
+                                <th scope="col" class="px-4 py-3 text-left whitespace-nowrap {{ $hiddenClass }} {{ $col['class'] ?? '' }}">
+                                    @if($isSortable)
+                                        <button type="button" wire:click="sort('{{ $col['key'] }}')"
+                                            class="group inline-flex items-center gap-x-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none transition-colors">
+                                            {{ $col['label'] }}
+                                            <span class="flex-none">
+                                                @if($isActive && $sortDirection === 'asc')
+                                                    <svg class="size-3.5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m18 15-6-6-6 6"/></svg>
+                                                @elseif($isActive && $sortDirection === 'desc')
+                                                    <svg class="size-3.5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                                                @else
+                                                    <svg class="size-3.5 opacity-0 group-hover:opacity-40 transition-opacity text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+                                                @endif
+                                            </span>
+                                        </button>
+                                    @else
+                                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ $col['label'] }}</span>
+                                    @endif
+                                </th>
+                            @endforeach
+                        </tr>
+                    </thead>
+
+                    <tbody
+                        wire:loading.class="opacity-40 pointer-events-none select-none"
+                        wire:target="sort,nextPage,previousPage,gotoPage,updatedPerPage,deleteItem,resetFilter,resetAllFilters,query"
+                        class="divide-y divide-gray-100 dark:divide-gray-700/60 bg-white dark:bg-gray-900 transition-opacity duration-200">
                         @foreach($this->records as $record)
                             @include($rowView, ['record' => $record])
                         @endforeach
-                    @endif
-                </tbody>
-            </table>
-        </div>
-        {{-- END TABLE --}}
+                    </tbody>
+                </table>
+            </div>
+        @endif
+        {{-- END TABLE / CARDS --}}
 
 
         {{-- PAGINATION FOOTER --}}

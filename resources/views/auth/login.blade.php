@@ -1,4 +1,4 @@
-@extends('core::layouts.guest')
+@extends('core::layouts.login')
 
 <style>
     /* ── Hide reCAPTCHA badge ── */
@@ -127,6 +127,31 @@
     [x-cloak] {
         display: none !important;
     }
+
+    /* ── Aurora Background Variables ── */
+    :root {
+        --primary: #3B5BFF;
+        --primary-2: #8B5CF6;
+        --accent: #0EA5C4;
+    }
+
+    .dark {
+        --primary: #6C87FF;
+        --primary-2: #A78BFA;
+        --accent: #2DD4E8;
+    }
+
+    /* ── Canvas Style ── */
+    /* ── Canvas Style ── */
+    #bg-canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        z-index: 0;
+        pointer-events: none;
+    }
 </style>
 
 <script>
@@ -141,7 +166,14 @@
 
 {!! RecaptchaV3::initJs() !!}
 
-<div x-data="loginPage()" class="min-h-screen" x-cloak>
+<div x-data="loginPage()" class="min-h-screen relative overflow-hidden"
+    style="background: linear-gradient(140deg, #0f0c29 0%, #302b63 50%, #24243e 100%);" x-cloak>
+
+    {{-- Aurora wave background (full viewport coverage) --}}
+    <canvas id="bg-canvas" class="absolute left-0 top-0 pointer-events-none z-0 w-full h-full" aria-hidden="true"></canvas>
+
+    {{-- Hidden theme toggle button to bridge Preline theme toggle with Aurora JS --}}
+    <button id="themeToggle" class="hidden" aria-hidden="true"></button>
 
     {{-- ════════════════════════════════════════════════════
     FLOATING CONTROLS — Dark Mode + Language (top-right)
@@ -157,29 +189,18 @@
     {{-- ════════════════════════════════════════════════════
     MOBILE LAYOUT (< lg) Full-screen gradient + floating glass card ════════════════════════════════════════════════════
         --}} <div
-        class="lg:hidden relative min-h-screen flex flex-col items-center justify-center px-5 py-14 overflow-hidden"
-        style="background: linear-gradient(140deg, #0f0c29 0%, #302b63 45%, #24243e 100%);">
+        class="lg:hidden relative min-h-screen flex flex-col items-center justify-center px-5 py-12 overflow-hidden bg-transparent">
 
-        {{-- Decorative blobs --}}
-        <div class="blob-float absolute top-0 -left-16 w-72 h-72 rounded-full opacity-20 pointer-events-none"
-            style="background: radial-gradient(circle, #667eea, #764ba2);"></div>
-        <div class="blob-float-slow absolute bottom-0 -right-16 w-56 h-56 rounded-full opacity-20 pointer-events-none"
-            style="background: radial-gradient(circle, #f093fb, #f5576c);"></div>
-        <div class="absolute top-1/3 right-8 w-24 h-24 rounded-full opacity-10 pointer-events-none"
-            style="background: #a78bfa;"></div>
+
 
         {{-- Brand header --}}
         <div class="relative z-10 text-center mb-8">
-            <div class="logo-glow inline-flex items-center justify-center w-16 h-16 mb-5 rounded-2xl"
-                style="background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.22);">
-                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-            </div>
-            <h1 class="shimmer-brand text-3xl font-extrabold tracking-tight">Rakaca</h1>
-            <h2 class="text-lg font-extrabold text-gray-200 mt-1">dari BALÉ</h2>
-            <p class="text-white/60 text-sm mt-1">{{ __('Content Management System') }}</p>
+            {{-- <div class="inline-flex items-center justify-center mb-2 rounded-2xl"> --}}
+                {{-- <x-rakaca::aurora.brand-mark class="size-16" /> --}}
+                {{-- </div> --}}
+
+            <h1 class="shimmer-brand text-xl font-extrabold tracking-tight">Rakaca</h1>
+            <h2 class="text-xs font-smibold text-gray-200 mt-1">dari BALÉ</h2>
         </div>
 
         {{-- Glass Login Card --}}
@@ -197,43 +218,27 @@
 DESKTOP LAYOUT (≥ lg)
 Left: branding panel | Right: login form
 ════════════════════════════════════════════════════ --}}
-<div class="hidden lg:flex min-h-screen bg-gray-50 dark:bg-[#0f0c29]">
+<div class="hidden lg:flex min-h-screen bg-transparent">
 
     {{-- ── LEFT: Branding Panel ────────────────────────── --}}
-    <div class="relative flex w-[55%] xl:w-3/5 overflow-hidden"
-        style="background: linear-gradient(140deg, #0f0c29 0%, #302b63 50%, #24243e 100%);">
-
-        {{-- Decorative circles --}}
-        <div class="blob-float absolute -top-24 -left-24 w-96 h-96 rounded-full opacity-25 pointer-events-none"
-            style="background: radial-gradient(circle, #667eea, #764ba2);"></div>
-        <div class="blob-float-slow absolute -bottom-24 -right-24 w-80 h-80 rounded-full opacity-20 pointer-events-none"
-            style="background: radial-gradient(circle, #f093fb, #f5576c);"></div>
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] rounded-full opacity-[0.07] pointer-events-none border border-white/20"
-            style="background: radial-gradient(circle, rgba(167,139,250,0.3), transparent 70%);"></div>
-        <div class="absolute top-20 right-20 w-32 h-32 rounded-full opacity-10 pointer-events-none"
-            style="background: #a78bfa;"></div>
-        <div class="absolute bottom-32 left-16 w-20 h-20 rounded-full opacity-10 pointer-events-none"
-            style="background: #60a5fa;"></div>
+    <div class="relative flex w-[55%] xl:w-3/5 overflow-hidden bg-transparent">
 
         {{-- Content --}}
         <div class="relative z-10 flex flex-col justify-center px-14 xl:px-20 text-white w-full">
 
             {{-- Logo + Name --}}
-            <div class="mb-10">
-                <div class="logo-glow inline-flex items-center justify-center w-20 h-20 mb-7 rounded-3xl"
-                    style="background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.18);">
-                    <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"
-                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
+
+            <a href="/" class="flex mb-10 gap-x-3 items-center w-fit">
+                <x-rakaca::aurora.brand-mark class="size-20 shimmer-brand" />
+                <div class="w-fit -space-y-3">
+                    <h1 class="shimmer-brand text-4xl xl:text-5xl font-extrabold tracking-tight leading-tight">
+                        Rakaca
+                    </h1>
+                    <h2 class="text-right text-sm leading-relaxed text-white/70">
+                        dari BALÉ
+                    </h2>
                 </div>
-
-                <h1 class="shimmer-brand text-5xl xl:text-6xl font-extrabold tracking-tight leading-tight">
-                    Rakaca
-                </h1>
-
-                <h2 class="text-base max-w-lg leading-relaxed text-white/70">dari BALÉ</h2>
-            </div>
+            </a>
 
             {{-- Feature list --}}
             <div class="space-y-6 max-w-md">
@@ -282,15 +287,15 @@ Left: branding panel | Right: login form
     </div>
 
     {{-- ── RIGHT: Login Form Panel ─────────────────────── --}}
-    <div class="flex items-center justify-center w-[45%] xl:w-2/5 px-8 xl:px-14 bg-white dark:bg-gray-900">
+    <div class="relative z-10 flex items-center justify-center w-[45%] xl:w-2/5 px-8 xl:px-14 glass-card border-l-0 lg:border-l border-white/10">
         <div class="w-full max-w-md">
             {{-- Card header --}}
             <div class="mb-8">
-                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-1">{{ __('Selamat Datang') }}</h2>
-                <p class="text-gray-500 dark:text-gray-400 text-sm">{{ __('Masuk ke akun Anda untuk melanjutkan') }}</p>
+                <h2 class="text-2xl font-bold text-white mb-1">{{ __('Selamat Datang') }}</h2>
+                <p class="text-white/60 text-sm">{{ __('Masuk ke akun Anda untuk melanjutkan') }}</p>
             </div>
 
-            @include('core::auth._login-form-inner', ['dark' => false])
+            @include('core::auth._login-form-inner', ['dark' => true])
 
             {{-- Footer --}}
             <p class="mt-8 text-xs text-center text-gray-400 dark:text-gray-600">
@@ -321,7 +326,50 @@ Left: branding panel | Right: login form
                     }
                 } );
                 observer.observe( document.body, { subtree: true, attributes: true } );
+
+                // Dispatch window resize events to let Three.js / aurora.js recalculate dimensions
+                // once Alpine.js initializes and removes the x-cloak wrapper.
+                setTimeout(() => {
+                    window.dispatchEvent(new Event('resize'));
+                }, 100);
+                setTimeout(() => {
+                    window.dispatchEvent(new Event('resize'));
+                }, 400);
             },
         };
     }
+</script>
+
+{{-- Three.js Library for Aurora Wave background --}}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+{{-- Compiled Aurora JS via Vite --}}
+@vite(['resources/js/aurora.js'])
+
+<script>
+    (function () {
+        // Sync class 'dark' on html to 'data-theme' attribute so aurora.js reads the correct theme
+        function syncTheme() {
+            const isDark = document.documentElement.classList.contains('dark');
+            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        }
+
+        // Initial theme sync
+        syncTheme();
+
+        // Listen for Preline UI theme toggle class mutations
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'class') {
+                    syncTheme();
+                    // Dispatch click to hidden themeToggle button to trigger aurora.js updates
+                    const dummyToggle = document.getElementById('themeToggle');
+                    if (dummyToggle) {
+                        dummyToggle.click();
+                    }
+                }
+            });
+        });
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    })();
 </script>

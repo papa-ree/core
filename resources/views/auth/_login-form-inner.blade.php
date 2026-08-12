@@ -96,7 +96,7 @@ $dark (bool) — true when rendered on the dark gradient (mobile), false on ligh
                         d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
             </div>
-            <input type="text" name="username" id="{{ $isDark ? 'username_m' : 'username_d' }}"
+            <input required type="text" name="username" id="{{ $isDark ? 'username_m' : 'username_d' }}"
                 value="{{ old('username') }}" placeholder="{{ __('Masukkan username') }}" autofocus autocomplete="off"
                 class="{{ $inputBase }} {{ $hasErrors ? $inputError : $inputNormal }} pl-10 {{ $hasErrors ? 'pr-10' : '' }}" />
             @if ($hasErrors)
@@ -125,7 +125,7 @@ $dark (bool) — true when rendered on the dark gradient (mobile), false on ligh
                         d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
             </div>
-            <input :type="showPassword ? 'text' : 'password'" name="password"
+            <input required :type="showPassword ? 'text' : 'password'" name="password"
                 id="{{ $isDark ? 'password_m' : 'password_d' }}" placeholder="{{ __('Masukkan password') }}"
                 autocomplete="off" class="{{ $inputBase }} {{ $hasErrors ? $inputError : $inputNormal }} pl-10 pr-11" />
             {{-- Show/hide toggle --}}
