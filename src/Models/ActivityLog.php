@@ -2,6 +2,7 @@
 
 namespace Bale\Core\Models;
 
+use BackedEnum;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -36,13 +37,17 @@ class ActivityLog extends SpatieActivity implements ActivityContract
         return $this->morphTo();
     }
 
-    public function scopeInLog(Builder $query, string|array ...$logNames): Builder
+    /** @param  BackedEnum|string|array<BackedEnum|string>  ...$logNames */
+    public function scopeInLog(Builder $query, BackedEnum|string|array ...$logNames): Builder
     {
         if (is_array($logNames[0])) {
             $logNames = $logNames[0];
         }
 
-        return $query->whereIn('log_name', $logNames);
+        return $query->whereIn('log_name', array_map(
+            fn (BackedEnum|string $logName) => $logName instanceof BackedEnum ? $logName->value : $logName,
+            $logNames,
+        ));
     }
 
     public function scopeCausedBy(Builder $query, Model $causer): Builder

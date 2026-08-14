@@ -27,13 +27,14 @@ class CheckKeycloakSession
      */
     public function handle(Request $request, Closure $next)
     {
+        // Jika sinkronisasi SSO dimatikan, nonaktifkan seluruh perilaku Keycloak
+        // (silent check untuk guest maupun pengecekan sesi untuk user yang login).
+        if (! config('core.sso_session_sync', true)) {
+            return $next($request);
+        }
+
         // 1. Jika User SUDAH Login: Cek apakah session di Keycloak masih aktif
         if (Auth::check() && session()->has('keycloak_access_token')) {
-            // Jika sso_session_sync dimatikan, lewati pengecekan status login
-            if (! config('core.sso_session_sync', true)) {
-                return $next($request);
-            }
-
             $status = $this->checkKeycloakSession();
 
             if (isset($status['active']) && ! $status['active']) {
