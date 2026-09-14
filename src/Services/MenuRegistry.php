@@ -2,6 +2,9 @@
 
 namespace Bale\Core\Services;
 
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+
 /**
  * MenuRegistry
  *
@@ -103,12 +106,27 @@ class MenuRegistry
         return $this->resolveGroups('tenant');
     }
 
+    public function getGuestGroups(): array
+    {
+        return $this->resolveGroups('guest');
+    }
+
     /**
      * Mengambil semua grup berdasarkan type, kemudian filter item di dalamnya.
      * Grup yang tidak memiliki item setelah filter akan dibuang.
      */
     protected function resolveGroups(string $type): array
     {
+        $userId = \Illuminate\Support\Facades\Auth::id() ?? 'guest';
+        $cacheKey = "core.menu.{$type}.{$userId}";
+
+        if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
+            $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+            if (is_array($cached)) {
+                return $cached;
+            }
+        }
+
         $result = [];
 
         foreach ($this->groups as $group) {
@@ -130,6 +148,8 @@ class MenuRegistry
             ];
         }
 
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $result, 300);
+
         return $result;
     }
 
@@ -148,19 +168,29 @@ class MenuRegistry
      */
     protected function filterItems(array $items): array
     {
-        return array_values(array_filter($items, function (array $item): bool {
-            // Cek apakah class yang dipersyaratkan ada (untuk fitur opsional seperti Kosadata)
+        // Optimasi: eager load permissions sekali per request + cache 5 menit per user per type
+        static $permsCache = [];
+        $userId = \Illuminate\Support\Facades\Auth::id() ?? 'guest';
+        if (! isset($permsCache[$userId])) {
+            $user = \Illuminate\Support\Facades\Auth::user();
+            if ($user) {
+                $user->loadMissing('roles', 'permissions');
+                $permsCache[$userId] = $user->getAllPermissions()->pluck('name')->toArray();
+            } else {
+                $permsCache[$userId] = [];
+            }
+        }
+        $perms = $permsCache[$userId];
+
+        return array_values(array_filter($items, function (array $item) use ($perms): bool {
             if (isset($item['class']) && ! class_exists($item['class'])) {
                 return false;
             }
-
-            // Cek permission jika didefinisikan dan bukan null
             if (isset($item['permission']) && $item['permission'] !== null) {
-                if (! auth()->check() || ! auth()->user()->can($item['permission'])) {
+                if (! in_array($item['permission'], $perms, true)) {
                     return false;
                 }
             }
-
             return true;
         }));
     }

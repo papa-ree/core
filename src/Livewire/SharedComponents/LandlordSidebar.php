@@ -22,7 +22,7 @@ class LandlordSidebar extends Component
      *
      * @return array<int, array{key: string, label: string, icon: string, items: array}>
      */
-    #[Computed]
+    #[Computed(persist: true)]
     public function menuGroups(): array
     {
         return app(MenuRegistry::class)->getLandlordGroups();
