@@ -4,7 +4,6 @@ namespace Bale\Core\Traits;
 
 use Bale\Cms\Services\TenantManager;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Request;
 use Spatie\Activitylog\Contracts\Activity;
 use Spatie\Activitylog\Models\Concerns\LogsActivity as SpatieLogsActivity;

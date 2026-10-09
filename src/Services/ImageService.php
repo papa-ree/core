@@ -6,6 +6,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\EncodedImage;
 use Intervention\Image\ImageManager;
 use Throwable;
@@ -64,7 +65,7 @@ class ImageService
         $driver = strtolower((string) (config('images.driver', config('images.default', env('IMAGE_DRIVER', 'gd')))));
 
         $class = ($driver === 'imagick' && class_exists(\Imagick::class))
-            ? \Intervention\Image\Drivers\Imagick\Driver::class
+            ? Driver::class
             : \Intervention\Image\Drivers\Gd\Driver::class;
 
         return new ImageManager($class);
@@ -74,11 +75,11 @@ class ImageService
      * Konversi file upload (Livewire TemporaryUploadedFile, UploadedFile, path,
      * atau binary) menjadi WebP dan simpan ke storage.
      *
-     * @param  UploadedFile|string|resource $file  File yang akan dikonversi
-     * @param  int  $quality   Kualitas output WebP (1–100, default 80)
+     * @param  UploadedFile|string|resource  $file  File yang akan dikonversi
+     * @param  int  $quality  Kualitas output WebP (1–100, default 80)
      * @param  int  $maxWidth  Lebar maksimum gambar (proportional, tidak pernah diperbesar)
      * @param  string|null  $directory  Sub-directory relatif disk (default "cms")
-     * @return string  Path file berakhiran `.webp` (mis. "cms/{uuid}.webp")
+     * @return string Path file berakhiran `.webp` (mis. "cms/{uuid}.webp")
      */
     public function toWebp(UploadedFile|string $file, int $quality = 80, int $maxWidth = 1920, ?string $directory = null): string
     {
@@ -123,9 +124,7 @@ class ImageService
      *
      * @param  string  $oldPath  Path relatif di dalam disk
      * @param  string|null  $disk  Disk tempat file berada (default sama dgn disk aktif)
-     * @param  int  $quality
-     * @param  int  $maxWidth
-     * @return string|null  Path `.webp` baru, atau null bila gagal / bukan gambar raster
+     * @return string|null Path `.webp` baru, atau null bila gagal / bukan gambar raster
      */
     public function convertExisting(string $oldPath, ?string $disk = null, int $quality = 80, int $maxWidth = 1920): ?string
     {

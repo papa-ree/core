@@ -1,8 +1,9 @@
 @props([
     'disabled' => false,
+    'checked' => false,
 ])
 
-<input type="checkbox" {{ $disabled ? 'disabled' : '' }}
+<input type="checkbox" {{ $checked ? 'checked' : '' }} {{ $disabled ? 'disabled' : '' }}
     {{ $attributes->merge(['class' => 'peer sr-only']) }}>
 
 <span class="shrink-0 flex items-center justify-center size-4.5 rounded-md

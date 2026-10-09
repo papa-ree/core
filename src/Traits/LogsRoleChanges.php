@@ -95,7 +95,7 @@ trait LogsRoleChanges
             ])
             ->log($tenantName === 'landlord'
                 ? "{$model} {$event}"
-                : "{$tenantName} {$model} was " . ucfirst($event)
+                : "{$tenantName} {$model} was ".ucfirst($event)
             );
     }
 
@@ -120,7 +120,7 @@ trait LogsRoleChanges
             ])
             ->log($tenantName === 'landlord'
                 ? "{$model} {$event}"
-                : "{$tenantName} {$model} was " . ucfirst($event)
+                : "{$tenantName} {$model} was ".ucfirst($event)
             );
     }
 }

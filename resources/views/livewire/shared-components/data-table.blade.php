@@ -1,5 +1,22 @@
 <?php
 
+/*
+ * Shared data-table.
+ *
+ * CATATAN SOAL `activeFilters`:
+ * Nilai string kosong diabaikan (berarti "semua"). Untuk menyaring nilai
+ * NULL — mis. baris yang kolomnya belum terisi — pakai nilai literal
+ * string `'null'`, yang diterjemahkan jadi `whereNull($kolom)`. Nilai
+ * `'null'` aman dipakai sebagai sentinel karena tidak akan pernah menjadi
+ * nilai kolom biasa di database.
+ *
+ * CATATAN SOAL `constraints`:
+ * Properti ini hanya dibaca saat mount. Mengubahnya dari komponen induk
+ * setelah mount TIDAK akan membuat tabel ikut berubah, karena anak tidak
+ * dirender ulang saat induknya berubah. Filter yang berubah-ubah karena
+ * interaksi pengguna harus lewat `activeFilters`, bukan `constraints`.
+ */
+
 use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\{Computed, Url, On, Locked};
@@ -18,6 +35,25 @@ new class extends Component {
     public string $deleteEvent        = 'deleteItem';
     public string $rowView            = '';
     public string $cardView           = '';
+
+    /**
+     * Filter dropdown yang dirender sendiri oleh tabel.
+     *
+     * Bentuk per filter:
+     *   [
+     *       'key'     => 'device_id',            // kolom yang disaring
+     *       'label'   => 'Device Pengirim',
+     *       'options' => ['wago prod' => 'Nawasara Agent', ...],
+     *       'nullLabel' => 'Tanpa device',       // opsional, memunculkan opsi NULL
+     *   ]
+     *
+     * Kenapa tabel yang merender sendiri, bukan slot: isi slot Livewire
+     * dirender dalam konteks komponen INDUK, sehingga `wire:model` di
+     * dalamnya menunjuk ke state milik induk — bukan `activeFilters` milik
+     * tabel ini. Akibatnya `wire:model` di dalam slot tidak akan pernah
+     * mengubah query tabel.
+     */
+    public array  $filterOptions      = [];
 
     #[Url(history: true)]
     public string $query = '';
@@ -54,6 +90,7 @@ new class extends Component {
         int    $perPage            = 20,
         string $deleteEvent        = 'deleteItem',
         string $cardView           = '',
+        array  $filterOptions      = [],
     ): void {
         $this->model               = $model;
         $this->rowView             = $rowView;
@@ -68,6 +105,7 @@ new class extends Component {
         $this->perPage             = $perPage;
         $this->deleteEvent         = $deleteEvent;
         $this->cardView            = $cardView;
+        $this->filterOptions       = $filterOptions;
     }
 
     public function sort(string $field): void
@@ -83,6 +121,33 @@ new class extends Component {
 
     public function updatedQuery(): void   { $this->resetPage(); }
     public function updatedPerPage(): void { $this->resetPage(); }
+
+    /**
+     * Ubah nilai filter mentah menjadi teks yang enak dibaca.
+     *
+     * Nilai `'null'` adalah sentinel untuk menyaring NULL, jadi tidak boleh
+     * tampil mentah-mentah sebagai "null" pada badge filter aktif.
+     */
+    public function filterLabel(string $key, mixed $value): string
+    {
+        if (is_array($value)) {
+            $value = implode(', ', $value);
+        }
+
+        foreach ($this->filterOptions as $filter) {
+            if (($filter['key'] ?? null) !== $key) {
+                continue;
+            }
+
+            if ($value === 'null' && isset($filter['nullLabel'])) {
+                return (string) $filter['nullLabel'];
+            }
+
+            return (string) ($filter['options'][$value] ?? $value);
+        }
+
+        return (string) $value;
+    }
 
     public function resetFilter(string $field): void
     {
@@ -147,7 +212,11 @@ new class extends Component {
             }
         }
         foreach ($this->activeFilters as $col => $val) {
-            if ($val !== '' && $val !== null) {
+            if ($val === null) {
+                $builder->whereNull($col);
+            } elseif (is_string($val) && trim($val) === 'null') {
+                $builder->whereNull($col);
+            } elseif ($val !== '' && $val !== null) {
                 $builder->where($col, $val);
             }
         }
@@ -186,7 +255,7 @@ new class extends Component {
                         @foreach($activeFilters as $filterKey => $filterVal)
                             @if($filterVal !== '' && $filterVal !== null)
                                 <span class="inline-flex items-center gap-1 py-1 ps-2.5 pe-1.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-700/40">
-                                    {{ is_array($filterVal) ? implode(', ', $filterVal) : $filterVal }}
+                                    {{ $this->filterLabel($filterKey, $filterVal) }}
                                     <button type="button" wire:click="resetFilter('{{ $filterKey }}')"
                                         class="shrink-0 size-3.5 inline-flex items-center justify-center rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-700 transition-colors">
                                         <svg class="size-2.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -204,8 +273,11 @@ new class extends Component {
                 {{-- Right: Controls --}}
                 <div class="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
 
-                    {{-- Filter Slot --}}
-                    @if(isset($filters))
+                    {{-- Filter Dropdown --}}
+                    {{-- `filterOptions` dirender oleh tabel ini sendiri; slot
+                         `filters` hanya jadi jalan keluar untuk kasus kustom,
+                         dan isinya tetap berjalan dalam konteks komponen induk. --}}
+                    @if(count($filterOptions) > 0 || $slot->has('filters'))
                         <div class="hs-dropdown relative inline-flex [--auto-close:inside] [--placement:bottom-right]">
                             <button id="hs-dt-filter-{{ $this->getId() }}" type="button"
                                 class="hs-dropdown-toggle inline-flex items-center gap-x-2 py-2 px-3 text-sm font-medium rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none transition-all dark:bg-gray-800 dark:border-gray-600/60 dark:text-gray-300 dark:hover:bg-gray-700">
@@ -217,7 +289,28 @@ new class extends Component {
                                 <svg class="hs-dropdown-open:rotate-180 size-3.5 text-gray-400 transition-transform" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
                             </button>
                             <div class="hs-dropdown-menu transition-[opacity,margin] hs-dropdown-open:opacity-100 opacity-0 hidden z-50 mt-2 min-w-72 bg-white shadow-xl rounded-xl border border-gray-200 p-4 dark:bg-gray-800 dark:border-gray-700">
-                                <div class="space-y-3">{{ $filters }}</div>
+                                <div class="space-y-3">
+                                    @foreach($filterOptions as $filter)
+                                        <div>
+                                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                                                {{ $filter['label'] ?? '' }}
+                                            </label>
+                                            <select wire:model.live="activeFilters.{{ $filter['key'] }}"
+                                                class="block w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                <option value="">{{ $filter['allLabel'] ?? __('Semua') }}</option>
+                                                @foreach($filter['options'] ?? [] as $optionValue => $optionLabel)
+                                                    <option value="{{ $optionValue }}">{{ $optionLabel }}</option>
+                                                @endforeach
+                                                @if(isset($filter['nullLabel']))
+                                                    {{-- Nilai 'null' adalah sentinel untuk whereNull. --}}
+                                                    <option value="null">{{ $filter['nullLabel'] }}</option>
+                                                @endif
+                                            </select>
+                                        </div>
+                                    @endforeach
+
+                                    {{ $slot('filters') }}
+                                </div>
                                 <div class="pt-3 mt-3 border-t border-gray-100 dark:border-gray-700 flex justify-end">
                                     <button type="button" wire:click="resetAllFilters" class="py-1.5 px-3 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 transition-all">Reset Filters</button>
                                 </div>

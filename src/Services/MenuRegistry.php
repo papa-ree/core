@@ -117,11 +117,11 @@ class MenuRegistry
      */
     protected function resolveGroups(string $type): array
     {
-        $userId = \Illuminate\Support\Facades\Auth::id() ?? 'guest';
+        $userId = Auth::id() ?? 'guest';
         $cacheKey = "core.menu.{$type}.{$userId}";
 
-        if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
-            $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+        if (Cache::has($cacheKey)) {
+            $cached = Cache::get($cacheKey);
             if (is_array($cached)) {
                 return $cached;
             }
@@ -148,7 +148,7 @@ class MenuRegistry
             ];
         }
 
-        \Illuminate\Support\Facades\Cache::put($cacheKey, $result, 300);
+        Cache::put($cacheKey, $result, 300);
 
         return $result;
     }
@@ -170,9 +170,9 @@ class MenuRegistry
     {
         // Optimasi: eager load permissions sekali per request + cache 5 menit per user per type
         static $permsCache = [];
-        $userId = \Illuminate\Support\Facades\Auth::id() ?? 'guest';
+        $userId = Auth::id() ?? 'guest';
         if (! isset($permsCache[$userId])) {
-            $user = \Illuminate\Support\Facades\Auth::user();
+            $user = Auth::user();
             if ($user) {
                 $user->loadMissing('roles', 'permissions');
                 $permsCache[$userId] = $user->getAllPermissions()->pluck('name')->toArray();
@@ -191,6 +191,7 @@ class MenuRegistry
                     return false;
                 }
             }
+
             return true;
         }));
     }
