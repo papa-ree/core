@@ -33,7 +33,7 @@
             {{ __($label) }}
         </a>
     @else
-        <button :disabled="disabledButton" x-on:disabling-button.window="disabledButton = $event.detail.params"
+        <button
             {{ $attributes->merge([
                 'type' => 'submit',
                 'class' => $classes,
