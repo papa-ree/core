@@ -44,6 +44,18 @@ class Cdn
     }
 
     /**
+     * Forget the cached organization slug and resolver.
+     *
+     * Long-running queue workers are reused across tenants; the static slug
+     * cache must be reset before each job resolves a different tenant.
+     */
+    public static function forgetOrganizationSlug(): void
+    {
+        static::$cachedOrganizationSlug = null;
+        static::$organizationSlugResolver = null;
+    }
+
+    /**
      * Get organization slug using resolver or return empty string
      */
     protected static function organizationSlug(): string

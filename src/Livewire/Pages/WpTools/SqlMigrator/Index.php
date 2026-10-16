@@ -2,9 +2,11 @@
 
 namespace Bale\Core\Livewire\Pages\WpTools\SqlMigrator;
 
-use Bale\Core\Services\PostCleanerService;
+use Bale\Core\Jobs\Wp\ImportWpPostJob;
+use Bale\Core\Services\WpMigrationRunService;
+use Bale\Core\Services\WpSqlParser;
+use Bale\Core\Support\WpTenant;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -13,7 +15,6 @@ use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 use Paparee\Rakaca\Models\BaleList;
-use Ramsey\Uuid\Uuid;
 
 #[Layout('core::layouts.app')]
 #[Title('WP SQL Migrator')]
@@ -64,18 +65,8 @@ class Index extends Component
 
     public bool $isProcessing = false;
 
-    public bool $isDone = false;
-
-    public int $importedCount = 0;
-
-    public int $skippedCount = 0;
-
-    public int $filteredCount = 0;
-
-    public int $totalFoundCount = 0;
-
-    /** @var array<string> Human-readable error messages per row. */
-    public array $importErrors = [];
+    /** Id of the dispatched migration run (null until an import is started). */
+    public ?string $runId = null;
 
     /** @var string|null A single critical error that aborts the run. */
     public ?string $fatalError = null;
@@ -124,14 +115,9 @@ class Index extends Component
         }
 
         try {
-            $bale = BaleList::find($value);
-            if (! $bale) {
-                return;
-            }
+            $connection = app(WpTenant::class)->connection($value);
 
-            $connectionName = $this->setupTenantConnection($bale);
-
-            $this->tenantUsers = DB::connection($connectionName)
+            $this->tenantUsers = DB::connection($connection)
                 ->table('users')
                 ->select('uuid', 'name', 'email')
                 ->orderBy('name')
@@ -152,21 +138,23 @@ class Index extends Component
     // -----------------------------------------------------------------------
 
     /**
-     * Main import action triggered by the user clicking "Start Import".
+     * Parse the uploaded dump and dispatch one queued job per post.
+     *
+     * The heavy per-post work (HTML → EditorJS, slug handling, insert) happens
+     * in {@see ImportWpPostJob}; this request only parses the
+     * file and enqueues the batch so it can never time out.
      */
     public function import(): void
     {
         $this->checkAccess();
         $this->validate();
 
-        $this->reset(['isDone', 'importedCount', 'skippedCount', 'filteredCount', 'totalFoundCount', 'importErrors', 'fatalError']);
+        $this->reset(['fatalError', 'runId']);
         $this->isProcessing = true;
 
         try {
-            // --- Resolve target BaleList & build dynamic DB connection ---
             if (empty($this->selectedBaleId)) {
                 $this->fatalError = __('Please select a destination Bale.');
-                $this->isProcessing = false;
 
                 return;
             }
@@ -175,89 +163,58 @@ class Index extends Component
 
             if (! $bale) {
                 $this->fatalError = __('Selected Bale not found.');
-                $this->isProcessing = false;
 
                 return;
             }
 
             if (empty($this->selectedAuthorId)) {
                 $this->fatalError = __('Please select an Author for the posts.');
-                $this->isProcessing = false;
 
                 return;
             }
 
-            $connectionName = $this->setupTenantConnection($bale);
+            $tenant = app(WpTenant::class);
+            $connection = $tenant->connection($bale->id);
 
             // Verify connection before proceeding.
-            DB::connection($connectionName)->getPdo();
+            DB::connection($connection)->getPdo();
 
-            // --- Read & parse the SQL file ---
             $sqlContent = $this->readSqlFile();
 
             if ($sqlContent === null) {
-                $this->isProcessing = false;
-
                 return;
             }
 
-            $posts = $this->parsePosts($sqlContent);
+            $parser = new WpSqlParser;
+            $posts = $parser->parse($sqlContent, $this->tablePrefix);
 
             if (empty($posts)) {
                 $this->fatalError = __('No publishable WordPress posts found in the SQL dump. Check the file and table prefix.');
-                $this->isProcessing = false;
 
                 return;
             }
 
-            // --- Clean & insert each post ---
-            $cleaner = new PostCleanerService;
+            $run = app(WpMigrationRunService::class)->startSqlRun(
+                baleId: $bale->id,
+                authorId: $this->selectedAuthorId,
+                posts: $posts,
+                meta: [
+                    'slug' => (string) $bale->slug,
+                    'table_prefix' => $this->tablePrefix,
+                    'file' => method_exists($this->sqlFile, 'getClientOriginalName')
+                        ? $this->sqlFile->getClientOriginalName()
+                        : null,
+                    'source' => 'ui',
+                ],
+            );
 
-            foreach ($posts as $post) {
-                try {
-                    $slug = Str::slug($post['post_title']);
-                    $title = $post['post_title'];
-                    $content = json_encode($cleaner->clean($post['post_content']), JSON_UNESCAPED_UNICODE);
+            $this->runId = $run->id;
 
-                    // Preserve the original WordPress dates:
-                    //   post_date      → created_at + published_at (publish date)
-                    //   post_modified  → updated_at (last modified)
-                    $publishedAt = $post['post_date'] ?? now();
-                    $modifiedAt = $post['post_modified'] ?? $publishedAt;
-
-                    // Check for duplicate slug on the target connection.
-                    $exists = DB::connection($connectionName)
-                        ->table('posts')
-                        ->where('slug', $slug)
-                        ->exists();
-
-                    if ($exists) {
-                        $slug = $slug.'-'.Str::lower(Str::random(5));
-                    }
-
-                    DB::connection($connectionName)->table('posts')->insert([
-                        'id' => Uuid::uuid4(),
-                        'title' => $title,
-                        'slug' => $slug,
-                        'content' => $content,
-                        'author' => $this->selectedAuthorId,
-                        'published' => true,
-                        'published_at' => $publishedAt,
-                        'created_at' => $publishedAt,
-                        'updated_at' => $modifiedAt,
-                    ]);
-
-                    $this->importedCount++;
-
-                } catch (\Throwable $e) {
-                    $this->skippedCount++;
-                    $this->importErrors[] = 'Row skipped — '.Str::limit($post['post_title'] ?? '(unknown)', 60).': '.$e->getMessage();
-                }
-            }
-
-            $this->isDone = true;
-            $this->dispatch('toast', message: __(':count posts imported successfully!', ['count' => $this->importedCount]), type: 'success');
-
+            $this->dispatch(
+                'toast',
+                message: __(':count posts queued for import. Processing in the background…', ['count' => count($posts)]),
+                type: 'success'
+            );
         } catch (\Throwable $e) {
             $this->fatalError = $e->getMessage();
         } finally {
@@ -308,201 +265,6 @@ class Index extends Component
         }
     }
 
-    /**
-     * Parse all valid wp_posts INSERT statements from the raw SQL dump.
-     *
-     * @return array<array<string,string>>
-     */
-    protected function parsePosts(string $sql): array
-    {
-        $posts = [];
-
-        $prefixPattern = empty($this->tablePrefix)
-            ? '[a-zA-Z0-9_]+'
-            : preg_quote($this->tablePrefix, '/');
-
-        $pattern = '/INSERT\s+INTO\s+`?'.$prefixPattern.'posts`?\s*\(([^)]+)\)\s*VALUES\s*(.*?)(?=;\s*(\r?\n|$)|;\s*(?:\/\*|INSERT|UNLOCK|COMMIT|BEGIN|SET|DROP|CREATE))/is';
-
-        if (! preg_match_all($pattern, $sql, $matches, PREG_SET_ORDER)) {
-            return [];
-        }
-
-        foreach ($matches as $match) {
-            $columnsPart = $match[1];
-            $valuesPart = $match[2];
-
-            $columns = array_map(
-                fn ($col) => trim(str_replace('`', '', $col)),
-                explode(',', $columnsPart)
-            );
-
-            $rows = $this->extractValueRows($valuesPart);
-            $this->totalFoundCount += count($rows);
-
-            foreach ($rows as $rawRow) {
-                $values = $this->parseValueRow($rawRow, count($columns));
-                $row = array_combine($columns, $values);
-
-                if (! $row) {
-                    continue;
-                }
-
-                $postType = $row['post_type'] ?? '';
-                $postStatus = $row['post_status'] ?? '';
-
-                if ($postType !== 'post' || $postStatus !== 'publish') {
-                    $this->filteredCount++;
-
-                    continue;
-                }
-
-                if (empty(trim($row['post_title'] ?? ''))) {
-                    continue;
-                }
-
-                $posts[] = $row;
-            }
-        }
-
-        return $posts;
-    }
-
-    /**
-     * Split the VALUES portion of an INSERT statement into individual row strings.
-     *
-     * @return string[]
-     */
-    protected function extractValueRows(string $valuesPart): array
-    {
-        $rows = [];
-        $depth = 0;
-        $inStr = false;
-        $escape = false;
-        $start = null;
-        $len = strlen($valuesPart);
-
-        for ($i = 0; $i < $len; $i++) {
-            $char = $valuesPart[$i];
-
-            if ($escape) {
-                $escape = false;
-
-                continue;
-            }
-
-            if ($char === '\\' && $inStr) {
-                $escape = true;
-
-                continue;
-            }
-
-            if ($char === "'" && ! $escape) {
-                $inStr = ! $inStr;
-            }
-
-            if ($inStr) {
-                continue;
-            }
-
-            if ($char === '(') {
-                if ($depth === 0) {
-                    $start = $i + 1;
-                }
-                $depth++;
-            } elseif ($char === ')') {
-                $depth--;
-                if ($depth === 0 && $start !== null) {
-                    $rows[] = substr($valuesPart, $start, $i - $start);
-                    $start = null;
-                }
-            }
-        }
-
-        return $rows;
-    }
-
-    /**
-     * Parse an individual row string into an array of scalar values.
-     *
-     * @return string[]
-     */
-    protected function parseValueRow(string $row, int $expectedCount): array
-    {
-        $values = [];
-        $current = '';
-        $inStr = false;
-        $escape = false;
-        $len = strlen($row);
-
-        for ($i = 0; $i < $len; $i++) {
-            $char = $row[$i];
-
-            if ($escape) {
-                $current .= match ($char) {
-                    'n' => "\n",
-                    'r' => "\r",
-                    't' => "\t",
-                    "'" => "'",
-                    '\\' => '\\',
-                    default => $char,
-                };
-                $escape = false;
-
-                continue;
-            }
-
-            if ($char === '\\' && $inStr) {
-                $escape = true;
-
-                continue;
-            }
-
-            if ($char === "'") {
-                if ($inStr) {
-                    if (isset($row[$i + 1]) && $row[$i + 1] === "'") {
-                        $current .= "'";
-                        $i++;
-                    } else {
-                        $inStr = false;
-                    }
-                } else {
-                    $inStr = true;
-                }
-
-                continue;
-            }
-
-            if (! $inStr && $char === ',') {
-                $values[] = $current;
-                $current = '';
-
-                continue;
-            }
-
-            $current .= $char;
-        }
-
-        $values[] = $current;
-
-        $values = array_map(function ($v) {
-            $trimmed = trim($v);
-            if (strtoupper($trimmed) === 'NULL') {
-                return null;
-            }
-            if (str_starts_with($trimmed, "'") && str_ends_with($trimmed, "'")) {
-                return substr($trimmed, 1, -1);
-            }
-
-            return $trimmed;
-        }, $values);
-
-        while (count($values) < $expectedCount) {
-            $values[] = '';
-        }
-
-        return array_slice($values, 0, $expectedCount);
-    }
-
     // -----------------------------------------------------------------------
     // Permission Guard
     // -----------------------------------------------------------------------
@@ -512,30 +274,6 @@ class Index extends Component
         if (! auth()->check()) {
             abort(403);
         }
-    }
-
-    /**
-     * Configure a runtime database connection for a specific BaleList.
-     */
-    private function setupTenantConnection(BaleList $bale): string
-    {
-        $connectionName = 'bale_wp_migrator_'.str_replace('-', '_', $bale->id);
-
-        config([
-            "database.connections.{$connectionName}" => [
-                'driver' => 'mysql',
-                'host' => $bale->database_host,
-                'database' => $bale->database_name,
-                'username' => $bale->database_username,
-                'password' => $bale->database_password,
-                'charset' => 'utf8mb4',
-                'collation' => 'utf8mb4_unicode_ci',
-                'prefix' => '',
-                'strict' => false,
-            ],
-        ]);
-
-        return $connectionName;
     }
 
     // -----------------------------------------------------------------------

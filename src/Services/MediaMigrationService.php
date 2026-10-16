@@ -26,6 +26,11 @@ use Throwable;
  *
  * This service is intentionally decoupled from the WP SQL migrator so that the
  * migrator only has to create placeholders — all media heavy-lifting lives here.
+ *
+ * Safety: every downloaded binary is inspected by {@see MediaSecurityScanner}
+ * *before* it touches the storage disk. Backdoors, embedded/injected code and
+ * hidden links cause the file to be rejected (the placeholder is kept so the
+ * run stays retryable) and, when configured, quarantined for manual review.
  */
 class MediaMigrationService
 {
@@ -41,10 +46,28 @@ class MediaMigrationService
      */
     protected ?string $sourceDir = null;
 
+    /**
+     * Optional directory used to quarantine files rejected by the security
+     * scanner (raw payload + a JSON report) for later manual inspection.
+     */
+    protected ?string $quarantineDir = null;
+
+    /**
+     * When true, any finding (even low/medium severity) blocks the file.
+     */
+    protected bool $strict = false;
+
+    /**
+     * Result of the most recent security scan, exposed for reporting.
+     */
+    protected ?MediaScanResult $lastScan = null;
+
     public function __construct(
         protected ?ImageService $images = null,
+        protected ?MediaSecurityScanner $scanner = null,
     ) {
         $this->images ??= app(ImageService::class);
+        $this->scanner ??= app(MediaSecurityScanner::class);
     }
 
     /**
@@ -66,6 +89,35 @@ class MediaMigrationService
         $this->sourceDir = $sourceDir ? rtrim($sourceDir, '/\\') : null;
 
         return $this;
+    }
+
+    /**
+     * Directory where files rejected by the security scanner are written for
+     * manual review. Set to null to discard them (they are always logged).
+     */
+    public function setQuarantineDir(?string $quarantineDir): static
+    {
+        $this->quarantineDir = $quarantineDir ? rtrim($quarantineDir, '/\\') : null;
+
+        return $this;
+    }
+
+    /**
+     * When enabled, any security finding (low/medium/high) blocks a file.
+     */
+    public function setStrict(bool $strict = true): static
+    {
+        $this->strict = $strict;
+
+        return $this;
+    }
+
+    /**
+     * Result of the most recent security scan performed by this service.
+     */
+    public function lastScan(): ?MediaScanResult
+    {
+        return $this->lastScan;
     }
 
     /**
@@ -98,11 +150,11 @@ class MediaMigrationService
      * @param  array<string, mixed>  $content  Decoded EditorJS payload.
      * @param  string  $slug  Tenant/organization slug used as the storage directory
      *                        (e.g. "dindik").
-     * @return array{content: array<string, mixed>, migrated: int, failed: int, skipped: int, errors: array<int, string>}
+     * @return array{content: array<string, mixed>, migrated: int, failed: int, skipped: int, blocked: int, errors: array<int, string>, security: array<int, string>}
      */
     public function migrateContent(array $content, string $slug): array
     {
-        $stats = ['migrated' => 0, 'failed' => 0, 'skipped' => 0, 'errors' => []];
+        $stats = ['migrated' => 0, 'failed' => 0, 'skipped' => 0, 'blocked' => 0, 'errors' => [], 'security' => []];
         $blocks = $content['blocks'] ?? [];
 
         if (! is_array($blocks)) {
@@ -162,8 +214,13 @@ class MediaMigrationService
         $url = $this->storeImageFromUrl($src, $slug);
 
         if ($url === null) {
-            $stats['failed']++;
-            $stats['errors'][] = 'Image failed: '.Str::limit($src, 90);
+            if ($this->lastScan?->isBlocked()) {
+                $stats['blocked']++;
+                $stats['security'][] = 'Image blocked: '.Str::limit($src, 80).' — '.$this->lastScan->summary();
+            } else {
+                $stats['failed']++;
+                $stats['errors'][] = 'Image failed: '.Str::limit($src, 90);
+            }
 
             return null;
         }
@@ -202,8 +259,13 @@ class MediaMigrationService
         $url = $this->storeVideoFromUrl($src, $slug);
 
         if ($url === null) {
-            $stats['failed']++;
-            $stats['errors'][] = 'Video failed: '.Str::limit($src, 90);
+            if ($this->lastScan?->isBlocked()) {
+                $stats['blocked']++;
+                $stats['security'][] = 'Video blocked: '.Str::limit($src, 80).' — '.$this->lastScan->summary();
+            } else {
+                $stats['failed']++;
+                $stats['errors'][] = 'Video failed: '.Str::limit($src, 90);
+            }
 
             return null;
         }
@@ -233,6 +295,8 @@ class MediaMigrationService
      */
     public function storeImageFromUrl(string $url, string $slug): ?string
     {
+        $this->lastScan = null;
+
         foreach ($this->candidateImageUrls($url) as $candidate) {
             $tmp = null;
 
@@ -243,11 +307,30 @@ class MediaMigrationService
                     continue;
                 }
 
+                // Security first: reject backdoors / embedded code / hidden
+                // links before anything touches the storage disk.
+                $scan = $this->scanner->scan($binary, $candidate);
+
+                if ($scan->isBlocked() || ($this->strict && ! $scan->isClean())) {
+                    $this->lastScan = $scan;
+                    $this->quarantine($binary, $candidate, $scan);
+                    Log::warning('WP media blocked by security scanner', [
+                        'url' => $candidate,
+                        'severity' => $scan->severity,
+                        'findings' => $scan->codes(),
+                    ]);
+
+                    return null;
+                }
+
                 if (@getimagesizefromstring($binary) === false) {
                     Log::warning('WP media is not a valid image', ['url' => $candidate]);
 
                     continue;
                 }
+
+                // Record a non-blocking scan (warnings) on the last attempt.
+                $this->lastScan = $scan;
 
                 // ImageService expects a path; use a temp file for reliability.
                 $tmp = tempnam(sys_get_temp_dir(), 'bale-wp-img');
@@ -284,6 +367,8 @@ class MediaMigrationService
      */
     public function storeVideoFromUrl(string $url, string $slug): ?string
     {
+        $this->lastScan = null;
+
         try {
             $binary = $this->fetchBinary($this->normalizeUrl($url));
 
@@ -291,8 +376,24 @@ class MediaMigrationService
                 return null;
             }
 
-            $extension = pathinfo(parse_url($url, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION) ?: 'mp4';
-            $filename = Str::uuid().'.'.strtolower($extension);
+            $hint = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION));
+            $scan = $this->scanner->scan($binary, 'file'.($hint !== '' ? '.'.$hint : ''), 'video');
+            $this->lastScan = $scan;
+
+            if ($scan->isBlocked() || ($this->strict && ! $scan->isClean())) {
+                $this->quarantine($binary, $url, $scan);
+                Log::warning('WP video blocked by security scanner', [
+                    'url' => $url,
+                    'severity' => $scan->severity,
+                    'findings' => $scan->codes(),
+                ]);
+
+                return null;
+            }
+
+            // Prefer the extension proven by the file content, never the URL.
+            $extension = $this->scanner->safeVideoExtension($binary, $hint) ?? 'mp4';
+            $filename = Str::uuid().'.'.$extension;
             $path = trim($slug, '/').'/images/'.$filename;
 
             Storage::disk($this->disk())->put($path, $binary, ['visibility' => 'public']);
@@ -302,6 +403,41 @@ class MediaMigrationService
             Log::warning('WP video migration error', ['url' => $url, 'error' => $e->getMessage()]);
 
             return null;
+        }
+    }
+
+    /**
+     * Persist a rejected file (and a JSON report) for manual inspection.
+     *
+     * The payload is always written with a neutral `.bin` extension so it can
+     * never be executed if the quarantine directory happens to be web-visible.
+     */
+    protected function quarantine(string $binary, string $source, MediaScanResult $scan): void
+    {
+        if ($this->quarantineDir === null) {
+            return;
+        }
+
+        try {
+            if (! is_dir($this->quarantineDir)) {
+                @mkdir($this->quarantineDir, 0775, true);
+            }
+
+            $base = date('Ymd-His').'-'.substr(sha1($source.microtime(true)), 0, 12);
+            $file = $this->quarantineDir.DIRECTORY_SEPARATOR.$base.'.bin';
+
+            @file_put_contents($file, $binary);
+
+            @file_put_contents($file.'.json', json_encode([
+                'source' => $source,
+                'scanned_at' => date('c'),
+                'scan' => $scan->toArray(),
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        } catch (Throwable $e) {
+            Log::warning('Failed to quarantine rejected media', [
+                'source' => $source,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

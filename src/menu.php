@@ -52,6 +52,12 @@ return [
                     'permission' => 'activity-log.read',
                 ],
                 [
+                    'label' => 'Login Allowlist',
+                    'url' => 'security/login-allowlist',
+                    'icon' => 'shield',
+                    'permission' => 'entrance-gate.read',
+                ],
+                [
                     'label' => 'WP Tools',
                     'url' => 'wp-tools/sql-migrator',
                     'icon' => 'database-zap',

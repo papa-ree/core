@@ -2,13 +2,16 @@
 
 namespace Bale\Core;
 
+use Bale\Core\Commands\AllowEntranceGateIpCommand;
 use Bale\Core\Commands\CleanActivityLogCommand;
 use Bale\Core\Commands\InstallCommand;
 use Bale\Core\Commands\MigrateWpMediaCommand;
+use Bale\Core\Commands\MigrateWpSqlCommand;
 use Bale\Core\Commands\PublishErrorCommand;
 use Bale\Core\Commands\PublishMigrationCommand;
 use Bale\Core\Middleware\CheckKeycloakSession;
 use Bale\Core\Middleware\CheckLoginRateLimit;
+use Bale\Core\Middleware\RestrictEntranceGate;
 use Bale\Core\Middleware\SetLocale;
 use Bale\Core\Middleware\VerifyCaptcha;
 use Bale\Core\Services\MenuRegistry;
@@ -54,7 +57,9 @@ class CoreServiceProvider extends ServiceProvider
             'command.core:publish-migration' => PublishMigrationCommand::class,
             'command.core:publish-error' => PublishErrorCommand::class,
             'command.core:clean-activity-log' => CleanActivityLogCommand::class,
+            'command.core:entrance-gate:allow' => AllowEntranceGateIpCommand::class,
             'command.core:migrate-wp-media' => MigrateWpMediaCommand::class,
+            'command.core:migrate-wp-sql' => MigrateWpSqlCommand::class,
         ];
 
         foreach ($commands as $key => $class) {
@@ -82,6 +87,7 @@ class CoreServiceProvider extends ServiceProvider
         app('router')->aliasMiddleware('role_or_permission', RoleOrPermissionMiddleware::class);
         app('router')->aliasMiddleware('check_keycloak_session', CheckKeycloakSession::class);
         app('router')->aliasMiddleware('check_login_rate_limit', CheckLoginRateLimit::class);
+        app('router')->aliasMiddleware('entrance_gate', RestrictEntranceGate::class);
 
         // Register custom localization middleware to the web group
         app('router')->pushMiddlewareToGroup('web', SetLocale::class);

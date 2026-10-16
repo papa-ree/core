@@ -137,7 +137,7 @@ Route::group(['middleware' => ['web']], function () {
         }
 
         return view('core::auth.login');
-    })->name('login');
+    })->middleware('entrance_gate')->name('login');
 
     // Halaman lockout — ditampilkan saat user ter-blokir
     // Hanya bisa diakses jika ada data lockout di session (di-set oleh middleware CheckLoginRateLimit)
@@ -147,11 +147,12 @@ Route::group(['middleware' => ['web']], function () {
         }
 
         return view('core::auth.lockout');
-    })->name('login.lockout');
+    })->middleware('entrance_gate')->name('login.lockout');
 
     // POST /entrance.gate — form submit dengan recaptcha & rate limit
     Route::post('/entrance.gate', [AuthenticatedSessionController::class, 'store'])
         ->middleware(array_filter([
+            'entrance_gate',
             'guest:'.config('fortify.guard'),
             config('fortify.limiters.login') ? 'throttle:'.config('fortify.limiters.login') : null,
             'check_login_rate_limit',

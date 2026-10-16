@@ -16,9 +16,9 @@
             <div class="absolute inset-0 w-16 h-16 rounded-full border-4 border-transparent border-t-indigo-500 animate-spin"></div>
         </div>
         <div class="text-center">
-            <p class="text-lg font-bold text-gray-900 dark:text-white">{{ __('Migrating Posts…') }}</p>
+            <p class="text-lg font-bold text-gray-900 dark:text-white">{{ __('Queueing Posts…') }}</p>
             <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {{ __('Parsing SQL, cleaning HTML, and writing to the tenant database. Please wait.') }}
+                {{ __('Parsing the SQL dump and dispatching one background job per post. This only takes a moment.') }}
             </p>
         </div>
         {{-- Progress pulse --}}

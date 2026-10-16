@@ -39,8 +39,8 @@
         @endif
 
         {{-- ── Result or Form ─────────────────────────────────────── --}}
-        @if($isDone)
-            @include('core::livewire.pages.wp-tools.sql-migrator.section.result')
+        @if($runId)
+            @include('core::livewire.pages.wp-tools.sql-migrator.section.progress')
         @else
             @include('core::livewire.pages.wp-tools.sql-migrator.section.form')
         @endif

@@ -74,6 +74,10 @@ class InstallCommand extends Command
             'activity-log.read',
             'activity-log.delete',
             'activity-log.export',
+            'entrance-gate.read',
+            'entrance-gate.create',
+            'entrance-gate.update',
+            'entrance-gate.delete',
             'dashboard',
         ];
 

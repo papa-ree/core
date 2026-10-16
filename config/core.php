@@ -80,4 +80,68 @@ return [
     |
     */
     'sso_session_sync' => env('CORE_SSO_SESSION_SYNC', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | WordPress Migration (queue) Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Migrasi WordPress → Bale CMS dijalankan lewat queue, satu job per post.
+    | `wp-import` menangani tahap SQL (ringan), `wp-media` menangani tahap
+    | konversi media (berat). Media otomatis dirantai setelah tahap SQL selesai.
+    |
+    | PENTING: siapkan queue worker untuk kedua antrian, contoh:
+    |   php artisan queue:work --queue=wp-import,wp-media
+    |
+    */
+    'wp_migration' => [
+        /*
+         | Otomatis mulai tahap media setelah batch impor SQL selesai.
+         */
+        'chain_media' => env('WP_MIGRATION_CHAIN_MEDIA', true),
+
+        /*
+         | Nama antrian untuk tahap impor SQL.
+         */
+        'sql_queue' => env('WP_MIGRATION_SQL_QUEUE', 'wp-import'),
+
+        /*
+         | Nama antrian untuk tahap migrasi media.
+         */
+        'media_queue' => env('WP_MIGRATION_MEDIA_QUEUE', 'wp-media'),
+
+        /*
+         | Jumlah item per statement INSERT saat membuat item run.
+         */
+        'chunk_size' => env('WP_MIGRATION_CHUNK_SIZE', 500),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Entrance Gate IP Allowlist
+    |--------------------------------------------------------------------------
+    |
+    | Membatasi akses halaman form login (`entrance.gate`) hanya dari alamat IP
+    | yang terdaftar. Daftar utama dikelola lewat halaman "Login Allowlist"
+    | (tabel `entrance_gate_allowlist`); `allow` di sini adalah daftar statis
+    | tambahan (dipisah koma) sebagai jalur darurat bila halaman admin tidak
+    | bisa diakses.
+    |
+    | Perilaku fail-open: bila fitur nonaktif ATAU tidak ada satu pun entri
+    | (baik dari database maupun `allow`), semua IP diizinkan agar admin tidak
+    | terkunci. `127.0.0.1` dan `::1` selalu diizinkan.
+    |
+    */
+    'entrance_gate' => [
+        'enabled' => env('CORE_ENTRANCE_GATE_ENABLED', false),
+        'allow' => env('CORE_ENTRANCE_GATE_ALLOW', ''),
+
+        /*
+         | Selalu izinkan localhost (127.0.0.1 / ::1) saat fitur aktif, sebagai
+         | jalur darurat anti-lockout. Set false di produksi bila origin TIDAK
+         | berada di balik proxy lokal -- supaya IP yang salah resolve menjadi
+         | 127.0.0.1 tidak justru membuka gate.
+         */
+        'allow_localhost' => env('CORE_ENTRANCE_GATE_ALLOW_LOCALHOST', true),
+    ],
 ];

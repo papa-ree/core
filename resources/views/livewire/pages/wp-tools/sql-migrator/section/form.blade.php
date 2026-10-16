@@ -1,6 +1,6 @@
 {{-- ===================================================================
 |  Section: Upload & Configure Form
-|  Shown when $isDone is false.
+|  Shown while no migration run has been dispatched yet ($runId is null).
 =================================================================== --}}
 
 {{-- ── Step 1: Select Destination Bale ──────────────────────────── --}}

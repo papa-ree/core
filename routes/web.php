@@ -2,9 +2,12 @@
 
 use Bale\Core\Controllers\DashboardSelector;
 use Bale\Core\Controllers\MediaController;
+use Bale\Core\Controllers\WpMigrationRunStatusController;
 use Bale\Core\Livewire\Pages\ActivityLog\Index as ActivityLogIndex;
 use Bale\Core\Livewire\Pages\AuthenticationLog\Edit as AuthLogEdit;
 use Bale\Core\Livewire\Pages\AuthenticationLog\Index as AuthLogIndex;
+use Bale\Core\Livewire\Pages\EntranceGate\Form as EntranceGateForm;
+use Bale\Core\Livewire\Pages\EntranceGate\Index as EntranceGateIndex;
 use Bale\Core\Livewire\Pages\PermissionManagement\Create as PermissionCreate;
 use Bale\Core\Livewire\Pages\PermissionManagement\Edit as PermissionEdit;
 use Bale\Core\Livewire\Pages\PermissionManagement\Index as PermissionIndex;
@@ -56,9 +59,18 @@ Route::middleware(['auth', 'web', 'permission:activity-log.read'])->group(functi
     Route::get('/activity-logs', ActivityLogIndex::class)->name('activity-log');
 });
 
+// Login Allowlist (pembatasan IP halaman entrance.gate)
+Route::middleware(['auth', 'web', 'permission:entrance-gate.read'])->group(function () {
+    Route::get('/security/login-allowlist', EntranceGateIndex::class)->name('entrance-gate');
+    Route::get('/security/login-allowlist/create', EntranceGateForm::class)->name('entrance-gate.create');
+    Route::get('/security/login-allowlist/{id}/edit', EntranceGateForm::class)->name('entrance-gate.edit');
+});
+
 // WP Tools
 Route::middleware(['auth', 'web'])->group(function () {
     Route::get('/wp-tools/sql-migrator', SqlMigratorIndex::class)->name('wp-tools.sql-migrator');
+    Route::get('/wp-tools/wp-migrator/runs/{run}', [WpMigrationRunStatusController::class, 'show'])
+        ->name('wp-tools.migrator.status');
 });
 
 Route::middleware([

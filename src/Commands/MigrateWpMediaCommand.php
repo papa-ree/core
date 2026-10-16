@@ -3,7 +3,11 @@
 namespace Bale\Core\Commands;
 
 use Bale\Core\Services\MediaMigrationService;
+use Bale\Core\Services\MediaSecurityScanner;
+use Bale\Core\Services\PostCleanerService;
+use Bale\Core\Services\WpMigrationRunService;
 use Bale\Core\Support\Cdn;
+use Bale\Core\Support\WpTenant;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -14,13 +18,22 @@ use Throwable;
  *
  * Second stage of the WordPress → Bale CMS import. Scans one tenant database
  * for posts whose EditorJS `content` still contains media placeholders
- * (created by {@see \Bale\Core\Services\PostCleanerService}) and migrates the
+ * (created by {@see PostCleanerService}) and migrates the
  * referenced WordPress media into the active storage disk / CDN.
  *
- * Usage:
- *   php artisan core:migrate-wp-media --bale=<uuid> --wp-base=https://dindik.ponorogo.go.id
- *   php artisan core:migrate-wp-media --bale=<uuid> --post=<post-uuid>
- *   php artisan core:migrate-wp-media --bale=<uuid> --dry-run
+ * By default the work is dispatched to the queue — one job per post on the
+ * `wp-media` queue — so a single large post can never time out the run:
+ *
+ *   php artisan core:migrate-wp-media --bale=<uuid> --wp-base=https://example.test
+ *   # then, in another terminal:
+ *   php artisan queue:work --queue=wp-import,wp-media
+ *
+ * Pass `--sync` (or `--dry-run`, or `--post`) to run inline instead.
+ *
+ * Every file is inspected by {@see MediaSecurityScanner}
+ * before it is stored; files carrying backdoors, embedded code or hidden links
+ * are rejected (the placeholder is kept so the run stays retryable) and can be
+ * copied to `--quarantine-dir` for manual review.
  */
 class MigrateWpMediaCommand extends Command
 {
@@ -29,9 +42,13 @@ class MigrateWpMediaCommand extends Command
         {--slug= : Override organization slug (storage/CDN directory); defaults to the BaleList slug}
         {--wp-base= : Base URL of the legacy WordPress site, used to resolve relative media URLs}
         {--source-dir= : Local path to a copied wp-content (or uploads) directory to read media from, instead of HTTP}
-        {--post= : Only migrate a single post ID}
+        {--post= : Only migrate a single post ID (runs inline)}
         {--limit=0 : Maximum number of posts to process (0 = all)}
-        {--dry-run : Report what would change without writing to the database}';
+        {--quarantine-dir= : Directory to copy files rejected by the security scanner into (for manual review)}
+        {--strict : Also block files with low/medium security findings, not just high}
+        {--queue= : Queue name for the dispatched jobs (default: wp-media)}
+        {--sync : Run inline instead of dispatching queued jobs}
+        {--dry-run : Report what would change without writing to the database (runs inline)}';
 
     protected $description = 'Migrate WordPress media referenced by EditorJS placeholders into Bale storage/CDN';
 
@@ -66,18 +83,7 @@ class MigrateWpMediaCommand extends Command
             return self::FAILURE;
         }
 
-        // Make Cdn::url() resolve to the tenant we are migrating.
-        Cdn::resolveOrganizationSlugUsing(fn () => $slug);
-
-        if ($wpBase = $this->option('wp-base')) {
-            $service->setBaseUrl($wpBase);
-        }
-
-        if ($sourceDir = $this->option('source-dir')) {
-            $service->setSourceDir($sourceDir);
-        }
-
-        $connection = $this->setupTenantConnection($bale);
+        $connection = app(WpTenant::class)->connection($bale->id);
 
         try {
             DB::connection($connection)->getPdo();
@@ -89,15 +95,94 @@ class MigrateWpMediaCommand extends Command
 
         $dryRun = (bool) $this->option('dry-run');
         $limit = (int) $this->option('limit');
+        $inline = $dryRun || (bool) $this->option('sync') || (bool) $this->option('post');
+
+        $mode = $inline
+            ? ($dryRun ? 'DRY RUN' : 'INLINE')
+            : 'QUEUED (one job per post)';
+
+        config(['core.wp_migration.media_queue' => (string) ($this->option('queue') ?: config('core.wp_migration.media_queue'))]);
 
         $this->line(sprintf(
-            'Tenant: <info>%s</info> (%s) | slug: <info>%s</info> | disk: <info>%s</info>%s',
+            'Tenant: <info>%s</info> (%s) | slug: <info>%s</info> | disk: <info>%s</info> | mode: <info>%s</info>%s',
             $bale->name,
             $bale->database_name,
             $slug,
             $service->disk(),
-            $dryRun ? ' | <comment>DRY RUN</comment>' : ''
+            $mode,
+            $this->option('strict') ? ' | <comment>STRICT SCAN</comment>' : ''
         ));
+
+        if (! $inline) {
+            return $this->dispatchRun($bale, $slug, $limit);
+        }
+
+        return $this->runInline($service, $bale, $slug, $connection, $dryRun, $limit);
+    }
+
+    /**
+     * Dispatch the media stage as a queue batch (one job per post).
+     */
+    protected function dispatchRun(object $bale, string $slug, int $limit): int
+    {
+        $meta = [
+            'slug' => $slug,
+            'wp_base' => $this->option('wp-base') ?: null,
+            'source_dir' => $this->option('source-dir') ?: null,
+            'quarantine_dir' => $this->option('quarantine-dir') ?: null,
+            'strict' => (bool) $this->option('strict'),
+            'source' => 'cli',
+        ];
+
+        $run = app(WpMigrationRunService::class)->startMediaRun($bale->id, $meta, null, $limit);
+
+        if (! $run) {
+            $this->info('No posts with media placeholders found. Nothing to do.');
+
+            return self::SUCCESS;
+        }
+
+        $this->info(sprintf(
+            'Dispatched media run <info>%s</info> with <info>%d</info> post(s) to the <info>%s</info> queue.',
+            $run->id,
+            $run->total,
+            config('core.wp_migration.media_queue')
+        ));
+
+        $this->comment('Make sure a queue worker is running, e.g.: php artisan queue:work --queue=wp-import,wp-media');
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Run the migration synchronously in this process.
+     */
+    protected function runInline(
+        MediaMigrationService $service,
+        object $bale,
+        string $slug,
+        string $connection,
+        bool $dryRun,
+        int $limit
+    ): int {
+        // Make Cdn::url() resolve to the tenant we are migrating.
+        app(WpTenant::class)->cdn($slug);
+
+        if ($wpBase = $this->option('wp-base')) {
+            $service->setBaseUrl($wpBase);
+        }
+
+        if ($sourceDir = $this->option('source-dir')) {
+            $service->setSourceDir($sourceDir);
+        }
+
+        if ($quarantineDir = $this->option('quarantine-dir')) {
+            $service->setQuarantineDir($quarantineDir);
+        }
+
+        if ($this->option('strict')) {
+            $service->setStrict(true);
+        }
 
         $query = DB::connection($connection)
             ->table('posts')
@@ -130,8 +215,9 @@ class MigrateWpMediaCommand extends Command
         $bar = $this->output->createProgressBar($posts->count());
         $bar->start();
 
-        $totals = ['migrated' => 0, 'failed' => 0, 'posts' => 0];
+        $totals = ['migrated' => 0, 'failed' => 0, 'blocked' => 0, 'posts' => 0];
         $failures = [];
+        $security = [];
 
         foreach ($posts as $post) {
             $bar->advance();
@@ -146,9 +232,14 @@ class MigrateWpMediaCommand extends Command
 
             $totals['migrated'] += $result['migrated'];
             $totals['failed'] += $result['failed'];
+            $totals['blocked'] += $result['blocked'] ?? 0;
 
             foreach ($result['errors'] as $error) {
                 $failures[] = Str::limit($post->title, 45).': '.$error;
+            }
+
+            foreach (($result['security'] ?? []) as $finding) {
+                $security[] = Str::limit($post->title, 40).': '.$finding;
             }
 
             if ($result['migrated'] > 0) {
@@ -177,8 +268,25 @@ class MigrateWpMediaCommand extends Command
                 ['Posts updated', $dryRun ? $totals['posts'].' (dry-run)' : $totals['posts']],
                 ['Media migrated', $totals['migrated']],
                 ['Media failed', $totals['failed']],
+                ['Media blocked (security)', $totals['blocked']],
             ]
         );
+
+        if (! empty($security)) {
+            $this->newLine();
+            $this->error('Security scanner blocked '.count($security).' file(s) — placeholders kept:');
+            foreach (array_slice($security, 0, 25) as $finding) {
+                $this->line('  • '.$finding);
+            }
+            if (count($security) > 25) {
+                $this->line('  … and '.(count($security) - 25).' more.');
+            }
+            if ($this->option('quarantine-dir')) {
+                $this->line('  Quarantined payloads were written to: '.$this->option('quarantine-dir'));
+            } else {
+                $this->line('  Tip: re-run with --quarantine-dir=<path> to keep the rejected files for review.');
+            }
+        }
 
         if (! empty($failures)) {
             $this->newLine();
@@ -197,30 +305,5 @@ class MigrateWpMediaCommand extends Command
         }
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Configure a runtime database connection for a specific BaleList
-     * (mirrors \Bale\Core\Livewire\Pages\WpTools\SqlMigrator\Index).
-     */
-    protected function setupTenantConnection(object $bale): string
-    {
-        $connectionName = 'bale_wp_media_'.str_replace('-', '_', (string) $bale->id);
-
-        config([
-            "database.connections.{$connectionName}" => [
-                'driver' => 'mysql',
-                'host' => $bale->database_host,
-                'database' => $bale->database_name,
-                'username' => $bale->database_username,
-                'password' => $bale->database_password,
-                'charset' => 'utf8mb4',
-                'collation' => 'utf8mb4_unicode_ci',
-                'prefix' => '',
-                'strict' => false,
-            ],
-        ]);
-
-        return $connectionName;
     }
 }
