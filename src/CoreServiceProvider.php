@@ -4,6 +4,7 @@ namespace Bale\Core;
 
 use Bale\Core\Commands\CleanActivityLogCommand;
 use Bale\Core\Commands\InstallCommand;
+use Bale\Core\Commands\MigrateWpMediaCommand;
 use Bale\Core\Commands\PublishErrorCommand;
 use Bale\Core\Commands\PublishMigrationCommand;
 use Bale\Core\Middleware\CheckKeycloakSession;
@@ -53,6 +54,7 @@ class CoreServiceProvider extends ServiceProvider
             'command.core:publish-migration' => PublishMigrationCommand::class,
             'command.core:publish-error' => PublishErrorCommand::class,
             'command.core:clean-activity-log' => CleanActivityLogCommand::class,
+            'command.core:migrate-wp-media' => MigrateWpMediaCommand::class,
         ];
 
         foreach ($commands as $key => $class) {

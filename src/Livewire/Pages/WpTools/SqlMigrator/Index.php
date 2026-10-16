@@ -218,7 +218,12 @@ class Index extends Component
                     $slug = Str::slug($post['post_title']);
                     $title = $post['post_title'];
                     $content = json_encode($cleaner->clean($post['post_content']), JSON_UNESCAPED_UNICODE);
-                    $publishedAt = $post['post_modified'] ?? now();
+
+                    // Preserve the original WordPress dates:
+                    //   post_date      → created_at + published_at (publish date)
+                    //   post_modified  → updated_at (last modified)
+                    $publishedAt = $post['post_date'] ?? now();
+                    $modifiedAt = $post['post_modified'] ?? $publishedAt;
 
                     // Check for duplicate slug on the target connection.
                     $exists = DB::connection($connectionName)
@@ -238,8 +243,8 @@ class Index extends Component
                         'author' => $this->selectedAuthorId,
                         'published' => true,
                         'published_at' => $publishedAt,
-                        'created_at' => $post['post_date'] ?? now(),
-                        'updated_at' => $publishedAt,
+                        'created_at' => $publishedAt,
+                        'updated_at' => $modifiedAt,
                     ]);
 
                     $this->importedCount++;
