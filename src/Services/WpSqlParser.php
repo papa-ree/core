@@ -23,6 +23,12 @@ class WpSqlParser
     /** Text values whose double-encoded bytes were repaired on the last parse. */
     public int $encodingRepairedCount = 0;
 
+    /** `_thumbnail_id` meta rows seen by {@see parseThumbnails()}. */
+    public int $thumbnailMetaCount = 0;
+
+    /** `attachment` rows seen by {@see parseThumbnails()}. */
+    public int $attachmentCount = 0;
+
     /**
      * Undo the double-encoding that some dump clients introduce on export.
      *
@@ -111,6 +117,127 @@ class WpSqlParser
         }
 
         return $posts;
+    }
+
+    /**
+     * Extract the WordPress featured-image map from a dump.
+     *
+     * `wp_postmeta._thumbnail_id` points at an attachment row in `wp_posts`
+     * (`post_type = attachment`), whose `guid` is the file URL. A "posts-only"
+     * dump has no `wp_postmeta` at all, so the map comes back empty — callers
+     * must report that instead of silently leaving every thumbnail null.
+     *
+     * @return array<string, array{attachment_id: string, url: string, mime: string}>
+     *                                                                                keyed by WordPress post id
+     */
+    public function parseThumbnails(string $sql, string $tablePrefix = ''): array
+    {
+        $this->thumbnailMetaCount = 0;
+        $this->attachmentCount = 0;
+
+        $prefixPattern = $tablePrefix === ''
+            ? '[a-zA-Z0-9_]+'
+            : preg_quote($tablePrefix, '/');
+
+        $meta = $this->insertRows($sql, $prefixPattern, 'postmeta');
+
+        if ($meta === []) {
+            return [];
+        }
+
+        $thumbnails = [];
+
+        foreach ($meta as $row) {
+            if (($row['meta_key'] ?? '') !== '_thumbnail_id') {
+                continue;
+            }
+
+            $postId = trim((string) ($row['post_id'] ?? ''));
+            $attachmentId = trim((string) ($row['meta_value'] ?? ''));
+
+            if ($postId === '' || ! ctype_digit($attachmentId)) {
+                continue;
+            }
+
+            $this->thumbnailMetaCount++;
+
+            // A post may carry the key more than once (revisions/plugins);
+            // the last value wins, exactly like WordPress' get_post_meta().
+            $thumbnails[$postId] = $attachmentId;
+        }
+
+        if ($thumbnails === []) {
+            return [];
+        }
+
+        $attachments = [];
+
+        foreach ($this->insertRows($sql, $prefixPattern, 'posts') as $row) {
+            if (($row['post_type'] ?? '') !== 'attachment') {
+                continue;
+            }
+
+            $this->attachmentCount++;
+
+            $id = trim((string) ($row['ID'] ?? ''));
+            $url = trim((string) ($row['guid'] ?? ''));
+
+            if ($id === '' || $url === '') {
+                continue;
+            }
+
+            $attachments[$id] = [
+                'attachment_id' => $id,
+                'url' => $url,
+                'mime' => (string) ($row['post_mime_type'] ?? ''),
+            ];
+        }
+
+        $map = [];
+
+        foreach ($thumbnails as $postId => $attachmentId) {
+            if (isset($attachments[$attachmentId])) {
+                $map[$postId] = $attachments[$attachmentId];
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Parse every row of one `<prefix><table>` INSERT statement in the dump.
+     *
+     * @return array<int, array<string, string|null>>
+     */
+    protected function insertRows(string $sql, string $prefixPattern, string $table): array
+    {
+        $pattern = '/INSERT\s+INTO\s+`?'.$prefixPattern.$table.'`?\s*\(([^)]+)\)\s*VALUES\s*(.*?)(?=;\s*(\r?\n|$)|;\s*(?:\/\*|INSERT|UNLOCK|COMMIT|BEGIN|SET|DROP|CREATE))/is';
+
+        if (! preg_match_all($pattern, $sql, $matches, PREG_SET_ORDER)) {
+            return [];
+        }
+
+        $rows = [];
+
+        foreach ($matches as $match) {
+            $columns = array_map(
+                fn ($col) => trim(str_replace('`', '', $col)),
+                explode(',', $match[1])
+            );
+
+            foreach ($this->extractValueRows($match[2]) as $rawRow) {
+                $row = array_combine(
+                    $columns,
+                    $this->parseValueRow($rawRow, count($columns))
+                );
+
+                if ($row) {
+                    $rows[] = $row;
+                }
+            }
+        }
+
+        return $rows;
     }
 
     /**

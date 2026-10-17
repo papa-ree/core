@@ -361,6 +361,111 @@ class MediaMigrationService
     }
 
     /**
+     * Download a WordPress featured image and store it as a Bale thumbnail.
+     *
+     * Thumbnails mirror what `EditPost::uploadThumbnail()` does: WebP quality
+     * 80, maxWidth 800, directory `{slug}/thumbnails`, and only the basename is
+     * written to `posts.thumbnail`.
+     *
+     * The source host is allow-listed against the configured base URL: a dump
+     * is untrusted input, and `guid` is just a string — without this check the
+     * migrator would happily download from any host an attacker put there.
+     *
+     * @return string|null File name (basename) on success, null on failure/block.
+     */
+    public function storeThumbnailFromUrl(string $url, string $slug): ?string
+    {
+        $this->lastScan = null;
+
+        foreach ($this->candidateImageUrls($url) as $candidate) {
+            if (! $this->isAllowedSource($candidate)) {
+                Log::warning('WP thumbnail source rejected (host not allowed)', ['url' => $candidate]);
+
+                continue;
+            }
+
+            $tmp = null;
+
+            try {
+                $binary = $this->fetchBinary($candidate);
+
+                if ($binary === null || $binary === '') {
+                    continue;
+                }
+
+                $scan = $this->scanner->scan($binary, $candidate);
+
+                if ($scan->isBlocked() || ($this->strict && ! $scan->isClean())) {
+                    $this->lastScan = $scan;
+                    $this->quarantine($binary, $candidate, $scan);
+                    Log::warning('WP thumbnail blocked by security scanner', [
+                        'url' => $candidate,
+                        'severity' => $scan->severity,
+                        'findings' => $scan->codes(),
+                    ]);
+
+                    return null;
+                }
+
+                if (@getimagesizefromstring($binary) === false) {
+                    Log::warning('WP thumbnail is not a valid image', ['url' => $candidate]);
+
+                    continue;
+                }
+
+                $this->lastScan = $scan;
+
+                $tmp = tempnam(sys_get_temp_dir(), 'bale-wp-thumb');
+                file_put_contents($tmp, $binary);
+
+                $storedPath = $this->images->toWebp(
+                    $tmp,
+                    quality: 80,
+                    maxWidth: 800,
+                    directory: trim($slug, '/').'/thumbnails',
+                );
+
+                if ($storedPath === null || $storedPath === '') {
+                    continue;
+                }
+
+                return basename($storedPath);
+            } catch (Throwable $e) {
+                Log::warning('WP thumbnail migration error', ['url' => $candidate, 'error' => $e->getMessage()]);
+            } finally {
+                if ($tmp && is_file($tmp)) {
+                    @unlink($tmp);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Is this URL safe to download from?
+     *
+     * A local uploads mirror always wins (no network involved). Otherwise the
+     * host must match `setBaseUrl()`, so a tampered dump cannot turn the
+     * migration into an SSRF vector.
+     */
+    protected function isAllowedSource(string $absolute): bool
+    {
+        if ($this->sourceDir !== null && $this->localPathFor($absolute) !== null) {
+            return true;
+        }
+
+        if ($this->baseUrl === null) {
+            return false;
+        }
+
+        $baseHost = parse_url($this->baseUrl, PHP_URL_HOST);
+        $host = parse_url($absolute, PHP_URL_HOST);
+
+        return is_string($baseHost) && is_string($host) && strcasecmp($baseHost, $host) === 0;
+    }
+
+    /**
      * Download a (video) file from a legacy URL and re-upload it as-is.
      *
      * @return string|null CDN URL on success, null on failure.

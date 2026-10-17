@@ -7,6 +7,7 @@ use Bale\Core\Commands\CleanActivityLogCommand;
 use Bale\Core\Commands\InstallCommand;
 use Bale\Core\Commands\MigrateWpMediaCommand;
 use Bale\Core\Commands\MigrateWpSqlCommand;
+use Bale\Core\Commands\MigrateWpThumbnailsCommand;
 use Bale\Core\Commands\PublishErrorCommand;
 use Bale\Core\Commands\PublishMigrationCommand;
 use Bale\Core\Commands\WpMigrationRedispatchCommand;
@@ -62,6 +63,7 @@ class CoreServiceProvider extends ServiceProvider
             'command.core:entrance-gate:allow' => AllowEntranceGateIpCommand::class,
             'command.core:migrate-wp-media' => MigrateWpMediaCommand::class,
             'command.core:migrate-wp-sql' => MigrateWpSqlCommand::class,
+            'command.core:migrate-wp-thumbnails' => MigrateWpThumbnailsCommand::class,
             'command.core:wp-migration-status' => WpMigrationStatusCommand::class,
             'command.core:wp-migration-redispatch' => WpMigrationRedispatchCommand::class,
         ];

@@ -67,6 +67,66 @@ it('rejects a file that is clearly not a dump', function () {
         ->and((new WpSqlParser)->looksLikeDump('{"blocks":[]}'))->toBeFalse();
 });
 
+if (! function_exists('wp_test_thumbnail_dump')) {
+    function wp_test_thumbnail_dump(): string
+    {
+        return <<<'SQL'
+-- featured images live in wp_postmeta, the file URL on the attachment row
+DROP TABLE IF EXISTS `wp_postmeta`;
+CREATE TABLE `wp_postmeta` (
+  `meta_id` bigint NOT NULL,
+  `post_id` bigint NOT NULL,
+  `meta_key` varchar(255),
+  `meta_value` longtext
+);
+INSERT INTO `wp_postmeta` (`meta_id`, `post_id`, `meta_key`, `meta_value`) VALUES
+(1, 10, '_thumbnail_id', '55'),
+(2, 11, '_edit_lock', '1700000000:1'),
+(3, 11, '_thumbnail_id', '57'),
+(4, 12, '_thumbnail_id', '999');
+INSERT INTO `wp_posts` (`ID`, `post_title`, `guid`, `post_type`, `post_mime_type`) VALUES
+(55, 'Foto A', 'https://dindik.test/wp-content/uploads/2024/06/a.jpg', 'attachment', 'image/jpeg'),
+(57, 'Foto B', 'https://dindik.test/wp-content/uploads/2024/06/b.png', 'attachment', 'image/png'),
+(10, 'Berita A', '', 'post', '');
+SQL;
+    }
+}
+
+it('maps each post to its featured image attachment', function () {
+    $parser = new WpSqlParser;
+    $map = $parser->parseThumbnails(wp_test_thumbnail_dump());
+
+    // Post 12 points at attachment 999, which is not in the dump → dropped.
+    expect($map)->toHaveCount(2)
+        ->and($map['10']['url'])->toBe('https://dindik.test/wp-content/uploads/2024/06/a.jpg')
+        ->and($map['10']['mime'])->toBe('image/jpeg')
+        ->and($map['11']['url'])->toBe('https://dindik.test/wp-content/uploads/2024/06/b.png')
+        ->and($map['11']['attachment_id'])->toBe('57');
+
+    expect($parser->thumbnailMetaCount)->toBe(3)
+        ->and($parser->attachmentCount)->toBe(2);
+});
+
+it('reports an empty map for a posts-only dump without wp_postmeta', function () {
+    // This is the dindik regression: `wp_posts_only.txt` has attachment rows
+    // but no `_thumbnail_id`, so every thumbnail silently stayed null.
+    $parser = new WpSqlParser;
+    $map = $parser->parseThumbnails(wp_test_dump());
+
+    expect($map)->toBe([])
+        ->and($parser->thumbnailMetaCount)->toBe(0);
+});
+
+it('honours an explicit table prefix when parsing thumbnails', function () {
+    $sql = <<<'SQL'
+INSERT INTO `mysite_postmeta` (`meta_id`, `post_id`, `meta_key`, `meta_value`) VALUES (1, 9, '_thumbnail_id', '4');
+INSERT INTO `mysite_posts` (`ID`, `post_title`, `guid`, `post_type`, `post_mime_type`) VALUES (4, 'Foto', 'https://x.test/wp-content/uploads/f.jpg', 'attachment', 'image/jpeg');
+SQL;
+
+    expect((new WpSqlParser)->parseThumbnails($sql, 'mysite_'))->toHaveCount(1)
+        ->and((new WpSqlParser)->parseThumbnails($sql, 'wp_'))->toBe([]);
+});
+
 if (! function_exists('wp_test_mojibake')) {
     /**
      * Reproduce what a dump client does when it reads a UTF-8 column as CP1252

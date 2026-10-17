@@ -5,6 +5,7 @@ namespace Bale\Core\Services;
 use Bale\Core\Jobs\Wp\FinalizeWpRunJob;
 use Bale\Core\Jobs\Wp\ImportWpPostJob;
 use Bale\Core\Jobs\Wp\MigrateWpMediaPostJob;
+use Bale\Core\Jobs\Wp\MigrateWpThumbnailPostJob;
 use Bale\Core\Jobs\Wp\StartWpMediaRunJob;
 use Bale\Core\Models\WpMigrationItem;
 use Bale\Core\Models\WpMigrationRun;
@@ -239,6 +240,84 @@ class WpMigrationRunService
             ->allowFailures()
             // `finally` (not just `then`) so a failing last job cannot leave the
             // run stuck in `running` and make the status endpoint poll forever.
+            ->then(new FinalizeWpRunJob($run->id))
+            ->finally(new FinalizeWpRunJob($run->id))
+            ->dispatch();
+
+        $run->forceFill(['batch_id' => $batch->id])->save();
+    }
+
+    /**
+     * Create a thumbnail backfill run (one item per post that still needs a
+     * featured image) and dispatch its batch. Returns null when there is
+     * nothing to do.
+     *
+     * @param  array<int, array{post_id: string, url: string, wp_post_id?: string|null, title?: string|null}>  $posts
+     * @param  array<string, mixed>  $meta
+     */
+    public function startThumbnailRun(string $baleId, array $posts, array $meta = [], int $limit = 0): ?WpMigrationRun
+    {
+        if ($posts === []) {
+            return null;
+        }
+
+        if ($limit > 0) {
+            $posts = array_slice($posts, 0, $limit);
+        }
+
+        $run = WpMigrationRun::create([
+            'bale_id' => $baleId,
+            'type' => 'thumbnail',
+            'status' => 'running',
+            'total' => count($posts),
+            'started_at' => now(),
+            'meta' => $meta,
+        ]);
+
+        $now = now();
+        $items = [];
+
+        foreach ($posts as $post) {
+            $items[] = [
+                'id' => (string) Str::uuid(),
+                'run_id' => $run->id,
+                'wp_post_id' => isset($post['wp_post_id']) ? (string) $post['wp_post_id'] : null,
+                'post_id' => (string) $post['post_id'],
+                'status' => WpMigrationItem::STATUS_PENDING,
+                'payload' => json_encode(['url' => $post['url']], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'result' => json_encode(['title' => $post['title'] ?? null], JSON_UNESCAPED_UNICODE),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        foreach (array_chunk($items, $this->chunkSize()) as $chunk) {
+            WpMigrationItem::insert($chunk);
+        }
+
+        $this->dispatchThumbnailBatch($run);
+
+        return $run->refresh();
+    }
+
+    public function dispatchThumbnailBatch(WpMigrationRun $run): void
+    {
+        $itemIds = WpMigrationItem::where('run_id', $run->id)
+            ->where('status', WpMigrationItem::STATUS_PENDING)
+            ->pluck('id');
+
+        if ($itemIds->isEmpty()) {
+            $this->finish($run);
+
+            return;
+        }
+
+        $jobs = $itemIds->map(fn ($id) => new MigrateWpThumbnailPostJob($run->id, (string) $id))->all();
+
+        $batch = Bus::batch($jobs)
+            ->name('wp-thumbnail:'.$run->id)
+            ->onQueue($this->mediaQueue())
+            ->allowFailures()
             ->then(new FinalizeWpRunJob($run->id))
             ->finally(new FinalizeWpRunJob($run->id))
             ->dispatch();
