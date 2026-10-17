@@ -3,6 +3,8 @@
 namespace Bale\Core\Commands;
 
 use App\Models\User;
+use Bale\Core\Support\CorePermissions;
+use Bale\Core\Support\RootPermissions;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
@@ -54,32 +56,8 @@ class InstallCommand extends Command
     {
         $this->info('Seeding roles and permissions...');
 
-        // 1. Create Permissions
-        $permissions = [
-            'role.read',
-            'role.create',
-            'role.update',
-            'role.delete',
-            'permission.read',
-            'permission.create',
-            'permission.update',
-            'permission.delete',
-            'user-management.read',
-            'user-management.create',
-            'user-management.update',
-            'user-management.delete',
-            'authentication-log.read',
-            'authentication-log.update',
-            'authentication-log.delete',
-            'activity-log.read',
-            'activity-log.delete',
-            'activity-log.export',
-            'entrance-gate.read',
-            'entrance-gate.create',
-            'entrance-gate.update',
-            'entrance-gate.delete',
-            'dashboard',
-        ];
+        // 1. Create Permissions (sumber tunggal: CorePermissions::ALL)
+        $permissions = CorePermissions::ALL;
 
         foreach ($permissions as $permission) {
             Permission::firstOrCreate(['name' => $permission]);
@@ -90,8 +68,10 @@ class InstallCommand extends Command
         $roleAdmin = Role::firstOrCreate(['name' => 'admin']);
 
         // 3. Assign Permissions to Roles
-        // Role root: all permissions
-        $roleRoot->syncPermissions(Permission::all());
+        // Role root: seluruh permission platform, kecuali permission guest-scope
+        // (lihat Bale\Core\Support\RootPermissions) agar root tidak tercampur
+        // dengan identitas role `guest`.
+        $roleRoot->syncPermissions(RootPermissions::assignable());
 
         // Role admin: dashboard
         $roleAdmin->syncPermissions(['dashboard']);
