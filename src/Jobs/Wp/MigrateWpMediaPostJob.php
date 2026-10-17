@@ -6,6 +6,7 @@ use Bale\Core\Models\WpMigrationItem;
 use Bale\Core\Models\WpMigrationRun;
 use Bale\Core\Services\MediaMigrationService;
 use Bale\Core\Support\WpTenant;
+use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -20,10 +21,14 @@ use Throwable;
  * Migrates every media placeholder of one post (WebP conversion, CDN upload,
  * security scan) and rewrites its EditorJS content. One job per post so a
  * single post with many assets cannot time out the whole run.
+ *
+ * Dispatched inside `Bus::batch()` by the WP migration run service, so it MUST
+ * keep the {@see Batchable} trait — `PendingBatch` validates this when the batch
+ * is constructed and throws a `RuntimeException` otherwise.
  */
 class MigrateWpMediaPostJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable;
+    use Batchable, Dispatchable, InteractsWithQueue, Queueable;
 
     public int $timeout = 900;
 

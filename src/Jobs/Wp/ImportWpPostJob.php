@@ -6,6 +6,7 @@ use Bale\Core\Models\WpMigrationItem;
 use Bale\Core\Models\WpMigrationRun;
 use Bale\Core\Services\PostCleanerService;
 use Bale\Core\Support\WpTenant;
+use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -21,12 +22,16 @@ use Throwable;
  * Imports exactly one WordPress post (SQL stage) into the tenant's `posts`
  * table. Runs on the `wp-import` queue so a large dump never blocks a request.
  *
+ * Dispatched inside `Bus::batch()` by the WP migration run service, so it MUST
+ * keep the {@see Batchable} trait — `PendingBatch` validates this when the batch
+ * is constructed and throws a `RuntimeException` otherwise.
+ *
  * Idempotent: the row id is a UUIDv5 derived from the WordPress post id, and
  * the insert uses `insertOrIgnore`, so retries never duplicate a post.
  */
 class ImportWpPostJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable;
+    use Batchable, Dispatchable, InteractsWithQueue, Queueable;
 
     public int $timeout = 120;
 

@@ -132,7 +132,15 @@ class WpMigrationRunService
             ->allowFailures();
 
         if ($this->shouldChainMedia()) {
-            $batch->then(new StartWpMediaRunJob($run->id));
+            // `then` only fires when the last job to finish *succeeded*
+            // (Batch::recordSuccessfulJob); Batch::recordFailedJob never
+            // invokes `then`. Because the batch uses allowFailures(), a failed
+            // last job would therefore leave the media stage permanently
+            // unstarted — so we also register `finally`, which fires once every
+            // job has run either way. chainMedia() is idempotent, so both
+            // firing on the happy path is harmless.
+            $batch->then(new StartWpMediaRunJob($run->id))
+                ->finally(new StartWpMediaRunJob($run->id));
         }
 
         $batch = $batch->dispatch();
@@ -222,7 +230,10 @@ class WpMigrationRunService
             ->name('wp-media:'.$run->id)
             ->onQueue($this->mediaQueue())
             ->allowFailures()
+            // `finally` (not just `then`) so a failing last job cannot leave the
+            // run stuck in `running` and make the status endpoint poll forever.
             ->then(new FinalizeWpRunJob($run->id))
+            ->finally(new FinalizeWpRunJob($run->id))
             ->dispatch();
 
         $run->forceFill(['batch_id' => $batch->id])->save();
@@ -231,6 +242,10 @@ class WpMigrationRunService
     /**
      * Batch callback: the SQL stage finished — mark it done and start the media
      * stage for the posts that were just imported.
+     *
+     * Idempotent: it is registered as both `then` and `finally` on the SQL batch,
+     * so on the happy path it is invoked twice for the same run. The second call
+     * must not create a second media run.
      */
     public function chainMedia(string $sqlRunId): void
     {
@@ -240,9 +255,17 @@ class WpMigrationRunService
             return;
         }
 
+        $meta = $sqlRun->meta ?? [];
+
+        // The SQL stage is done either way, even when the chain was already
+        // resolved by a previous invocation.
         $this->finish($sqlRun);
 
-        $meta = $sqlRun->meta ?? [];
+        // Already chained (either resolved to a media run, or resolved to "no
+        // media needed" by an explicit null) → nothing left to start.
+        if (array_key_exists('media_run_id', $meta) || $this->mediaRunExists($sqlRunId)) {
+            return;
+        }
 
         $mediaRun = $this->startMediaRun(
             $sqlRun->bale_id,
@@ -256,6 +279,11 @@ class WpMigrationRunService
         $sqlRun->forceFill([
             'meta' => array_merge($meta, ['media_run_id' => $mediaRun?->id]),
         ])->save();
+    }
+
+    protected function mediaRunExists(string $sqlRunId): bool
+    {
+        return WpMigrationRun::where('parent_id', $sqlRunId)->exists();
     }
 
     public function finish(WpMigrationRun $run, string $status = 'finished'): void

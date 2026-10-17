@@ -2,6 +2,7 @@
 
 use Bale\Core\Jobs\Wp\ImportWpPostJob;
 use Bale\Core\Jobs\Wp\MigrateWpMediaPostJob;
+use Bale\Core\Jobs\Wp\StartWpMediaRunJob;
 use Bale\Core\Models\WpMigrationItem;
 use Bale\Core\Models\WpMigrationRun;
 use Bale\Core\Services\WpMigrationRunService;
@@ -185,4 +186,66 @@ it('returns null from startMediaRun when no post has placeholders', function () 
     ]);
 
     expect(app(WpMigrationRunService::class)->startMediaRun('bale-1', ['slug' => 'dindik']))->toBeNull();
+});
+
+it('registers the media chain on both then and finally callbacks', function () {
+    Bus::fake();
+
+    app(WpMigrationRunService::class)->startSqlRun('bale-1', 'author-1', [
+        ['ID' => '1', 'post_title' => 'A', 'post_content' => '<p>A</p>'],
+    ], ['slug' => 'dindik']);
+
+    // `then` is never invoked by Batch::recordFailedJob, so relying on it alone
+    // would leave the media stage unstarted whenever the last import job failed.
+    Bus::assertBatched(fn ($batch) => ($batch->thenCallbacks()[0] ?? null) instanceof StartWpMediaRunJob
+        && ($batch->finallyCallbacks()[0] ?? null) instanceof StartWpMediaRunJob);
+});
+
+it('starts the media stage only once even when the chain callback fires twice', function () {
+    Bus::fake();
+
+    DB::table('posts')->insert([
+        'id' => (string) Str::uuid(),
+        'author' => (string) Str::uuid(),
+        'title' => 'With media',
+        'slug' => 'with-media-once',
+        'content' => json_encode(['blocks' => [['type' => 'image-placeholder', 'data' => ['wp_src' => 'http://example.test/a.jpg']]]]),
+        'published' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $service = app(WpMigrationRunService::class);
+    $run = $service->createSqlRun('bale-1', 'author-1', [
+        ['ID' => '1', 'post_title' => 'A'],
+    ], ['slug' => 'dindik']);
+
+    // On the happy path the batch invokes both `then` and `finally`.
+    $service->chainMedia($run->id);
+    $service->chainMedia($run->id);
+
+    expect(WpMigrationRun::where('parent_id', $run->id)->count())->toBe(1)
+        ->and($run->fresh()->meta['media_run_id'])->not->toBeNull()
+        ->and($run->fresh()->status)->toBe('finished');
+});
+
+it('resolves the chain without a media run when no post has placeholders', function () {
+    Bus::fake();
+
+    $service = app(WpMigrationRunService::class);
+    $run = $service->createSqlRun('bale-1', 'author-1', [
+        ['ID' => '1', 'post_title' => 'A'],
+    ], ['slug' => 'dindik']);
+
+    // Simulate the import batch having imported every post.
+    WpMigrationItem::where('run_id', $run->id)->update(['status' => WpMigrationItem::STATUS_IMPORTED]);
+
+    // Invoked twice: `then` and `finally` both fire on the happy path, and the
+    // "nothing to migrate" resolution must stay idempotent too.
+    $service->chainMedia($run->id);
+    $service->chainMedia($run->id);
+
+    expect(WpMigrationRun::where('parent_id', $run->id)->count())->toBe(0)
+        ->and($run->fresh()->meta['media_run_id'])->toBeNull()
+        ->and($service->progress($run->fresh())['done'])->toBeTrue();
 });
