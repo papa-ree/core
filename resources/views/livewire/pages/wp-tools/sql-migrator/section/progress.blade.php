@@ -11,6 +11,8 @@
         state: null,
         error: null,
         timer: null,
+        stalled: 0,
+        lastProcessed: -1,
         start() {
             this.refresh();
             this.timer = setInterval(() => this.refresh(), 2000);
@@ -24,11 +26,22 @@
                 if (! res.ok) { this.error = "HTTP " + res.status; return; }
                 this.state = await res.json();
                 this.error = null;
+                this.trackStall();
                 if (this.state && this.state.done) { this.stop(); }
             } catch (e) {
                 this.error = String(e);
             }
         },
+        // A worker that is not listening to the migration queues looks exactly
+        // like a slow import: nothing fails, nothing moves. Count the polls that
+        // brought no new processed post so the hint can appear after ~30s.
+        trackStall() {
+            if (this.done) { this.stalled = 0; return; }
+            if (this.processed === this.lastProcessed) { this.stalled = this.stalled + 1; return; }
+            this.lastProcessed = this.processed;
+            this.stalled = 0;
+        },
+        get stalledWorker() { return ! this.done && this.pending > 0 && this.stalled >= 15; },
         get run() { return (this.state && this.state.run) ? this.state.run : {}; },
         get counts() { return this.run.counts ? this.run.counts : {}; },
         get total() { return this.run.total ? this.run.total : 0; },
@@ -136,6 +149,25 @@
     <template x-if="error">
         <div class="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
             <p class="text-xs text-amber-700 dark:text-amber-400" x-text="'{{ __('Could not refresh progress') }}: ' + error"></p>
+        </div>
+    </template>
+
+    {{-- Nothing is moving: the worker is probably listening to the wrong queue --}}
+    <template x-if="stalledWorker">
+        <div class="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl">
+            <p class="text-sm font-semibold text-amber-700 dark:text-amber-400 mb-1 flex items-center gap-2">
+                <x-lucide-alert-triangle class="w-4 h-4" />
+                {{ __('No post has been processed in the last 30 seconds') }}
+            </p>
+            <p class="text-xs text-amber-700 dark:text-amber-400">
+                {{ __('The jobs are queued, so the import is waiting on a queue worker that listens to the migration queues. A worker started as `queue:work` without `--queue` only reads the `default` queue. Start one with:') }}
+            </p>
+            <p class="mt-2 text-xs font-mono text-amber-800 dark:text-amber-300 bg-white/60 dark:bg-gray-900/40 rounded-lg px-3 py-2">
+                php artisan queue:work --queue=wp-import,wp-media
+            </p>
+            <p class="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                {{ __('Or diagnose from the shell: `php artisan core:wp-migration-status` shows the queue sizes and the exact command for your driver.') }}
+            </p>
         </div>
     </template>
 
