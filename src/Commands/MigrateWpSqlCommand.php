@@ -166,8 +166,27 @@ class MigrateWpSqlCommand extends Command
         $chainMedia = ! (bool) $this->option('no-chain');
         config(['core.wp_migration.chain_media' => $chainMedia]);
 
-        if ($this->option('no-chain-thumbnails')) {
+        $chainThumbnails = ! (bool) $this->option('no-chain-thumbnails');
+
+        if (! $chainThumbnails) {
             config(['core.wp_migration.chain_thumbnails' => false]);
+        }
+
+        // The thumbnail stage only downloads from the host of --wp-base (or a
+        // local --source-dir mirror): a dump is untrusted input, so its `guid`
+        // values are never followed blindly. Without either basis every single
+        // featured image would be rejected, so fail fast instead of importing
+        // 198 posts that silently end up without a thumbnail. A posts-only dump
+        // has nothing to fetch, so it is exempt.
+        if ($chainThumbnails && $thumbnails !== [] && ! $this->option('wp-base') && ! $this->option('source-dir')) {
+            $this->error(sprintf(
+                'This dump references %d featured image(s), but the thumbnail stage needs a source to download from.',
+                count($thumbnails)
+            ));
+            $this->line('Pass --wp-base=https://situs-lama.go.id (or --source-dir=<local uploads copy>).');
+            $this->line('To import posts and inline media only, pass --no-chain-thumbnails.');
+
+            return self::FAILURE;
         }
 
         if ($queue = $this->option('queue')) {

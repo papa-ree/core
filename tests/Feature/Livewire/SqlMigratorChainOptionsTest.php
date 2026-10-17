@@ -53,3 +53,13 @@ it('blocks the upload when thumbnails are chained without a base URL', function 
     $component->wpBase = 'https://dindik.ponorogo.go.id';
     expect($component->chainOptionError())->toBeNull();
 });
+
+it('does not block a posts-only dump that has no featured image to fetch', function () {
+    $component = new Index;
+    $component->chainThumbnails = true;
+    $component->wpBase = null;
+
+    // `false` = the parsed dump carries no `_thumbnail_id`, so the chained
+    // stage resolves to "nothing to do" and no host is ever contacted.
+    expect($component->chainOptionError(hasFeaturedImages: false))->toBeNull();
+});

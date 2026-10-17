@@ -214,12 +214,6 @@ class Index extends Component
                 return;
             }
 
-            if ($error = $this->chainOptionError()) {
-                $this->fatalError = $error;
-
-                return;
-            }
-
             $tenant = app(WpTenant::class);
             $connection = $tenant->connection($bale->id);
 
@@ -252,6 +246,15 @@ class Index extends Component
             // present in a full mysqldump; a posts-only export simply yields an
             // empty map and the chained thumbnail stage resolves to "no work".
             $thumbnails = $parser->parseThumbnails($sqlContent, $this->tablePrefix);
+
+            // Only a dump with featured images needs the base URL, so a
+            // posts-only dump can never be blocked by this guard.
+            if ($error = $this->chainOptionError($thumbnails !== [])) {
+                $this->fatalError = $error;
+                $this->addError('wpBase', __('Required before the featured images can be imported.'));
+
+                return;
+            }
 
             config([
                 'core.wp_migration.chain_media' => $this->chainMedia,
@@ -317,11 +320,14 @@ class Index extends Component
      * {@see MediaMigrationService::isAllowedSource()}).
      * Without a base URL every single thumbnail would be rejected, so we stop
      * the upload instead of importing 198 posts without images.
+     *
+     * `$hasFeaturedImages` comes from the parsed dump: a posts-only export has
+     * nothing to fetch, so it must not be blocked by this guard.
      */
-    public function chainOptionError(): ?string
+    public function chainOptionError(bool $hasFeaturedImages = true): ?string
     {
-        if ($this->chainThumbnails && blank($this->wpBase)) {
-            return __('Featured image import needs the WordPress Base URL: thumbnails are only downloaded from that host. Fill it in, or uncheck "Import featured images (thumbnails) automatically".');
+        if ($this->chainThumbnails && $hasFeaturedImages && blank($this->wpBase)) {
+            return __('Featured image import needs the WordPress Base URL (the green "Legacy Source & Stages" box above): thumbnails are only downloaded from that host. Fill it in, or uncheck "Import featured images (thumbnails) automatically".');
         }
 
         return null;
