@@ -65,7 +65,9 @@ class MediaSecurityScanner
      * Signature patterns: [regex, code, message, severity].
      *
      * Only patterns of 4+ bytes are treated as HIGH so that random bytes in a
-     * compressed stream cannot realistically produce a false positive.
+     * compressed stream cannot realistically produce a false positive. The
+     * three-byte PHP tags are listed in {@see SHORT_TEXT_CODES} and are only
+     * trusted inside a textual region of the file.
      *
      * @var array<int, array{0: string, 1: string, 2: string, 3: string}>
      */
@@ -117,6 +119,21 @@ class MediaSecurityScanner
         ['/string\.fromcharcode\s*\(/i', 'js_fromcharcode', 'JavaScript String.fromCharCode() obfuscation', MediaScanResult::SEVERITY_MEDIUM],
         ['/unescape\s*\(/i', 'js_unescape', 'JavaScript unescape() obfuscation', MediaScanResult::SEVERITY_LOW],
     ];
+
+    /**
+     * Codes whose signature is only three bytes long.
+     *
+     * Image compression leaves ~8 bits of entropy per byte, so the byte sequence
+     * `<?=` matches by chance roughly once per megabyte — a 1 MB JPEG has about a
+     * 6% chance of containing one. These codes are therefore only trusted when the
+     * match sits in a *textual* region of the file (EXIF/XMP metadata, comment
+     * segments or an appended payload), never inside the compressed pixel stream.
+     *
+     * @see isTextualContext()
+     *
+     * @var array<int, string>
+     */
+    protected const SHORT_TEXT_CODES = ['php_echo_tag', 'php_short_tag'];
 
     public function setMaxBytes(int $bytes): static
     {
@@ -199,14 +216,25 @@ class MediaSecurityScanner
         }
 
         foreach (self::SIGNATURES as [$pattern, $code, $message, $severity]) {
-            if (preg_match($pattern, $window, $matches)) {
-                $findings[] = [
-                    'code' => $code,
-                    'message' => $message,
-                    'severity' => $severity,
-                    'sample' => Str::limit(trim(preg_replace('/\s+/', ' ', $matches[0]) ?? ''), 80),
-                ];
+            if (! preg_match($pattern, $window, $matches, PREG_OFFSET_CAPTURE)) {
+                continue;
             }
+
+            [$match, $offset] = $matches[0];
+
+            // Reject three-byte signatures that only matched because of entropy
+            // inside the compressed image data (see SHORT_TEXT_CODES).
+            if (in_array($code, self::SHORT_TEXT_CODES, true)
+                && ! $this->isTextualContext($window, $offset)) {
+                continue;
+            }
+
+            $findings[] = [
+                'code' => $code,
+                'message' => $message,
+                'severity' => $severity,
+                'sample' => Str::limit(trim(preg_replace('/\s+/', ' ', $match) ?? ''), 80),
+            ];
         }
 
         // 5. Hidden links (URLs/anchor-like strings smuggled in the payload).
@@ -486,6 +514,28 @@ class MediaSecurityScanner
         $extension = strtolower(pathinfo(parse_url($filename, PHP_URL_PATH) ?: $filename, PATHINFO_EXTENSION));
 
         return $extension !== '' ? $extension : null;
+    }
+
+    /**
+     * Does the data around `$offset` read as text rather than as compressed data?
+     *
+     * Used to decide whether a short signature (e.g. `<?=`) is a genuine payload
+     * or a coincidence inside entropy-dense image data. Real injected code lives
+     * in a textual region, so the surrounding bytes are printable; the bytes
+     * around a coincidental match are uniformly random.
+     */
+    protected function isTextualContext(string $binary, int $offset, int $radius = 48): bool
+    {
+        $context = substr($binary, max(0, $offset - $radius), $radius * 2);
+
+        // Not enough data to judge: trust the signature.
+        if (strlen($context) < 8) {
+            return true;
+        }
+
+        $printable = preg_match_all('/[\x09\x0A\x0D\x20-\x7E]/', $context);
+
+        return $printable !== false && ($printable / strlen($context)) >= 0.8;
     }
 
     /**

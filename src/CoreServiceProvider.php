@@ -9,6 +9,7 @@ use Bale\Core\Commands\MigrateWpMediaCommand;
 use Bale\Core\Commands\MigrateWpSqlCommand;
 use Bale\Core\Commands\PublishErrorCommand;
 use Bale\Core\Commands\PublishMigrationCommand;
+use Bale\Core\Commands\WpMigrationStatusCommand;
 use Bale\Core\Middleware\CheckKeycloakSession;
 use Bale\Core\Middleware\CheckLoginRateLimit;
 use Bale\Core\Middleware\RestrictEntranceGate;
@@ -60,6 +61,7 @@ class CoreServiceProvider extends ServiceProvider
             'command.core:entrance-gate:allow' => AllowEntranceGateIpCommand::class,
             'command.core:migrate-wp-media' => MigrateWpMediaCommand::class,
             'command.core:migrate-wp-sql' => MigrateWpSqlCommand::class,
+            'command.core:wp-migration-status' => WpMigrationStatusCommand::class,
         ];
 
         foreach ($commands as $key => $class) {

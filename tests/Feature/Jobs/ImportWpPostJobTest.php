@@ -125,6 +125,55 @@ it('is idempotent when the same job is delivered twice', function () {
     expect(DB::table('posts')->count())->toBe(1);
 });
 
+it('keeps the WordPress post_name as the slug so permalinks survive', function () {
+    // `Str::slug()` would produce `...lepas-420-...-ta-20232024`, losing the
+    // hyphen WordPress keeps between digits; the post_name must win.
+    [$run, $item] = wp_test_make_sql_item([
+        'ID' => '80',
+        'post_title' => 'Dinas Pendidikan Ponorogo Lepas 420 Peserta Didik TA 2023/2024',
+        'post_name' => 'dinas-pendidikan-ponorogo-lepas-420-peserta-didik-ta-2023-2024',
+        'post_content' => '<p>Isi</p>',
+        'post_date' => '2024-06-27 09:41:59',
+        'post_modified' => '2024-06-27 09:41:59',
+    ]);
+
+    (new ImportWpPostJob($run->id, $item->id))->handle(app(WpTenant::class), app(PostCleanerService::class));
+
+    expect(DB::table('posts')->value('slug'))
+        ->toBe('dinas-pendidikan-ponorogo-lepas-420-peserta-didik-ta-2023-2024');
+});
+
+it('decodes a percent-encoded post_name back to UTF-8', function () {
+    // WordPress stores `🎉🏆 SELAMAT…` as `%f0%9f%8e%89%f0%9f%8f%86-…`; a browser
+    // re-encodes the decoded form to exactly the same URL.
+    [$run, $item] = wp_test_make_sql_item([
+        'ID' => '81',
+        'post_title' => '🎉🏆 SELAMAT DAN SUKSES! 🏆🎉',
+        'post_name' => '%f0%9f%8e%89%f0%9f%8f%86-selamat-dan-sukses-%f0%9f%8f%86%f0%9f%8e%89',
+        'post_content' => '<p>Isi</p>',
+        'post_date' => '2026-05-13 01:54:39',
+        'post_modified' => '2026-05-13 01:54:39',
+    ]);
+
+    (new ImportWpPostJob($run->id, $item->id))->handle(app(WpTenant::class), app(PostCleanerService::class));
+
+    expect(DB::table('posts')->value('slug'))->toBe('🎉🏆-selamat-dan-sukses-🏆🎉');
+});
+
+it('falls back to a title slug when post_name is missing', function () {
+    [$run, $item] = wp_test_make_sql_item([
+        'ID' => '82',
+        'post_title' => 'Tanpa Post Name',
+        'post_content' => '<p>Isi</p>',
+        'post_date' => '2024-06-27 09:41:59',
+        'post_modified' => '2024-06-27 09:41:59',
+    ]);
+
+    (new ImportWpPostJob($run->id, $item->id))->handle(app(WpTenant::class), app(PostCleanerService::class));
+
+    expect(DB::table('posts')->value('slug'))->toBe('tanpa-post-name');
+});
+
 it('uses a deterministic post id derived from the WordPress id', function () {
     [$runA, $itemA] = wp_test_make_sql_item([
         'ID' => '99',

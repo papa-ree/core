@@ -82,8 +82,8 @@
         wire:model.live="sqlFile"
         accept="application/sql,.sql,text/plain,.txt"
         :maxSize="102400"
-        :label="__('Drop your .sql dump here or click to browse')"
-        :hint="__('Accepts .sql or .txt files — max 100 MB. For larger files, split with mysqldump --where.')"
+        :label="__('Drop your dump here or click to browse')"
+        :hint="__('Accepts .sql and .txt — renamed to .txt is fine (e.g. when a proxy blocks .sql). Validated by content, not by extension. Max 100 MB.')"
     />
 
     @error('sqlFile')
@@ -136,6 +136,27 @@
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     {{ __('Default: wp_ — Leave empty to auto-detect any prefix ending in _posts') }}
                 </p>
+            </div>
+
+            {{-- Encoding Repair --}}
+            <div>
+                <label class="inline-flex items-start gap-2.5 cursor-pointer" for="fix-encoding">
+                    <input
+                        id="fix-encoding"
+                        type="checkbox"
+                        wire:model="fixEncoding"
+                        class="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-gray-600
+                               text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <span>
+                        <span class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {{ __('Repair mojibake text on export') }}
+                        </span>
+                        <span class="block mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                            {{ __('Some dump clients double-encode UTF-8, turning 🎉 into ðŸŽ‰ and ” into â€. The repair is lossless and validated per value; disable it only if the dump already holds correct UTF-8.') }}
+                        </span>
+                    </span>
+                </label>
             </div>
 
             {{-- Memory Notice --}}

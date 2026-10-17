@@ -40,8 +40,20 @@ class Index extends Component
     // Public State
     // -----------------------------------------------------------------------
 
-    /** @var TemporaryUploadedFile|null */
-    #[Validate(['sqlFile' => 'required|file|mimes:txt|max:102400'])]
+    /**
+     * The uploaded dump.
+     *
+     * Do **not** reintroduce `mimes:txt` / `mimetypes:` here. Laravel's `mimes`
+     * rule compares against the extension *guessed from the file contents*
+     * (finfo via Symfony's MimeTypes), and a mysqldump whose `post_content` is
+     * HTML-heavy is routinely sniffed as `text/html` → guessed extension `html`
+     * → "must be a file of type: txt", even for a file named `.txt`.
+     * The dump is validated by content instead:
+     * {@see WpSqlParser::looksLikeDump()}.
+     *
+     * @var TemporaryUploadedFile|null
+     */
+    #[Validate(['sqlFile' => 'required|file|max:102400'])]
     public $sqlFile = null;
 
     /** Selected BaleList UUID */
@@ -58,6 +70,17 @@ class Index extends Component
      * If empty, the parser will auto-detect any `INSERT INTO <anything>_posts` statement.
      */
     public string $tablePrefix = '';
+
+    /**
+     * Repair text that the dump client double-encoded on export.
+     *
+     * Some exports turn UTF-8 into mojibake (`🎉` → `ðŸŽ‰`, `”` → `â€`). The
+     * repair is lossless and validated per value, so it is on by default; turn it
+     * off when the dump is known to hold correct UTF-8.
+     *
+     * @see WpSqlParser::repairMojibake()
+     */
+    public bool $fixEncoding = true;
 
     // -----------------------------------------------------------------------
     // Result / UI State
@@ -186,7 +209,14 @@ class Index extends Component
             }
 
             $parser = new WpSqlParser;
-            $posts = $parser->parse($sqlContent, $this->tablePrefix);
+
+            if (! $parser->looksLikeDump($sqlContent)) {
+                $this->fatalError = __('The uploaded file does not look like a MySQL dump: no "INSERT INTO" or "CREATE TABLE" statement was found. Upload the exported wp_posts table (.sql or .txt).');
+
+                return;
+            }
+
+            $posts = $parser->parse($sqlContent, $this->tablePrefix, $this->fixEncoding);
 
             if (empty($posts)) {
                 $this->fatalError = __('No publishable WordPress posts found in the SQL dump. Check the file and table prefix.');
@@ -201,6 +231,8 @@ class Index extends Component
                 meta: [
                     'slug' => (string) $bale->slug,
                     'table_prefix' => $this->tablePrefix,
+                    'repair_encoding' => $this->fixEncoding,
+                    'encoding_repaired' => $parser->encodingRepairedCount,
                     'file' => method_exists($this->sqlFile, 'getClientOriginalName')
                         ? $this->sqlFile->getClientOriginalName()
                         : null,
@@ -212,7 +244,12 @@ class Index extends Component
 
             $this->dispatch(
                 'toast',
-                message: __(':count posts queued for import. Processing in the background…', ['count' => count($posts)]),
+                message: $parser->encodingRepairedCount > 0
+                    ? __(':count posts queued for import. Repaired :repaired mojibake text value(s). Processing in the background…', [
+                        'count' => count($posts),
+                        'repaired' => $parser->encodingRepairedCount,
+                    ])
+                    : __(':count posts queued for import. Processing in the background…', ['count' => count($posts)]),
                 type: 'success'
             );
         } catch (\Throwable $e) {

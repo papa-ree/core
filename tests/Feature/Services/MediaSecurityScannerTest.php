@@ -189,3 +189,76 @@ it('menolak video dengan ekstensi berbahaya pada service migrasi', function () {
     expect($url)->toBeNull()
         ->and($service->lastScan()?->hasCode('dangerous_extension'))->toBeTrue();
 });
+
+it('mengabaikan tag <?= yang hanya kebetulan muncul di data terkompresi', function () {
+    // Di dalam data gambar terkompresi, tiga byte `<?=` muncul secara acak
+    // kira-kira sekali per megabyte. Data di sekitarnya bukan teks, jadi ini
+    // bukan payload dan gambar harus tetap diizinkan.
+    $nonTextual = str_repeat("\x80\x90\xA0\xB0", 60);
+    $payload = substr(bale_scan_jpeg(), 0, 128).$nonTextual.'<?='.$nonTextual;
+
+    $result = $this->scanner->scan($payload, 'photo.jpg');
+
+    expect($result->hasCode('php_echo_tag'))->toBeFalse()
+        ->and($result->allowed)->toBeTrue();
+});
+
+it('tetap mendeteksi tag <?= yang berada di area teks', function () {
+    $payload = bale_scan_jpeg().str_repeat(' ', 64).'<?= system("id"); ?>';
+    $result = $this->scanner->scan($payload, 'photo.jpg');
+
+    expect($result->allowed)->toBeFalse()
+        ->and($result->hasCode('php_echo_tag'))->toBeTrue();
+});
+
+it('melaporkan daftar kode temuan', function () {
+    $result = $this->scanner->scan(bale_scan_jpeg().'<?php system("id"); ?>', 'photo.jpg');
+
+    expect($result->codes())->toContain('php_open_tag')->toContain('fn_system');
+});
+
+it('berhenti pada kandidat pertama yang diblokir, tidak jatuh ke varian berikutnya', function () {
+    // Sebuah varian WordPress (`-1024x683.jpg`) membuat dua kandidat: file asli
+    // dan varian hasil resize. Bila file asli diblokir, blok media harus gagal —
+    // bukan diam-diam menyimpan varian resize-nya.
+    $dir = rtrim(sys_get_temp_dir(), '/\\').DIRECTORY_SEPARATOR.'bale-quarantine-'.Str::uuid();
+
+    $service = new class extends MediaMigrationService
+    {
+        /** @var array<string, string> */
+        public array $payloads = [];
+
+        public int $fetches = 0;
+
+        protected function fetchBinary(string $url): ?string
+        {
+            $this->fetches++;
+
+            return $this->payloads[$url] ?? null;
+        }
+    };
+
+    $full = 'https://legacy.example/wp-content/uploads/evil.jpg';
+    $variant = 'https://legacy.example/wp-content/uploads/evil-1024x683.jpg';
+
+    $service->payloads = [
+        $full => bale_scan_jpeg().'<?php system("id"); ?>',
+        $variant => bale_scan_jpeg(),
+    ];
+    $service->setQuarantineDir($dir);
+
+    try {
+        $url = $service->storeImageFromUrl($variant, 'dindik');
+
+        expect($url)->toBeNull()
+            ->and($service->fetches)->toBe(1)
+            ->and($service->lastScan()?->hasCode('php_open_tag'))->toBeTrue();
+
+        expect(glob($dir.DIRECTORY_SEPARATOR.'*') ?: [])->not->toBeEmpty();
+    } finally {
+        foreach (glob($dir.DIRECTORY_SEPARATOR.'*') ?: [] as $file) {
+            @unlink($file);
+        }
+        @rmdir($dir);
+    }
+});

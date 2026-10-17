@@ -65,7 +65,8 @@ class ImportWpPostJob implements ShouldQueue
             $connection = $tenant->connection($run->bale_id);
             $author = (string) ($run->meta['author'] ?? '');
 
-            $slug = Str::slug($title);
+            $slug = $this->resolveSlug($payload, (string) $item->wp_post_id);
+
             $content = json_encode(
                 $cleaner->clean((string) ($payload['post_content'] ?? '')),
                 JSON_UNESCAPED_UNICODE
@@ -117,5 +118,29 @@ class ImportWpPostJob implements ShouldQueue
             ->where('slug', $slug)
             ->where('id', '!=', $exceptId)
             ->exists();
+    }
+
+    /**
+     * Resolve the post slug.
+     *
+     * WordPress' `post_name` wins whenever it exists so the migrated site keeps
+     * the original permalinks (backlinks and search rankings stay intact).
+     * `post_name` is stored URL-encoded for non-ASCII titles (`%f0%9f%8e%89…`),
+     * so it is decoded back to real UTF-8 — a browser re-encodes it to exactly
+     * the same URL. Only when it is missing do we fall back to the title.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    protected function resolveSlug(array $payload, string $wpPostId): string
+    {
+        $wpSlug = trim(rawurldecode((string) ($payload['post_name'] ?? '')));
+
+        if ($wpSlug !== '' && trim($wpSlug, '-') !== '') {
+            return $wpSlug;
+        }
+
+        $slug = Str::slug((string) ($payload['post_title'] ?? ''));
+
+        return $slug !== '' ? $slug : 'post-'.$wpPostId;
     }
 }

@@ -37,6 +37,7 @@ class MigrateWpSqlCommand extends Command
         {--prefix= : Table prefix, e.g. wp_ (empty = auto-detect)}
         {--slug= : Override organization slug; defaults to the BaleList slug}
         {--limit=0 : Maximum number of posts to import (0 = all)}
+        {--no-fix-encoding : Import the dump bytes verbatim (skip the mojibake repair)}
         {--queue= : Queue name for the dispatched jobs (default: wp-import)}
         {--sync : Run inline instead of dispatching queued jobs}
         {--no-chain : Do not auto-start the media stage after the import}
@@ -117,7 +118,8 @@ class MigrateWpSqlCommand extends Command
         }
 
         $prefix = (string) $this->option('prefix');
-        $posts = $parser->parse($sql, $prefix);
+        $repairEncoding = ! (bool) $this->option('no-fix-encoding');
+        $posts = $parser->parse($sql, $prefix, $repairEncoding);
         $limit = (int) $this->option('limit');
 
         if ($limit > 0) {
@@ -132,6 +134,13 @@ class MigrateWpSqlCommand extends Command
             count($posts),
             $limit > 0 ? ' (limited to '.$limit.')' : ''
         ));
+
+        if ($parser->encodingRepairedCount > 0) {
+            $this->line(sprintf(
+                'Detected a mojibake-encoded dump: repaired <info>%d</info> text value(s). Pass --no-fix-encoding to import the bytes verbatim.',
+                $parser->encodingRepairedCount
+            ));
+        }
 
         if (empty($posts)) {
             $this->warn('No publishable WordPress posts found in the dump. Check the file and table prefix.');
@@ -155,6 +164,8 @@ class MigrateWpSqlCommand extends Command
             'media_limit' => (int) $this->option('media-limit'),
             'file' => basename($file),
             'table_prefix' => $prefix,
+            'repair_encoding' => $repairEncoding,
+            'encoding_repaired' => $parser->encodingRepairedCount,
             'source' => 'cli',
         ];
 

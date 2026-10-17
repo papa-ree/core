@@ -70,6 +70,19 @@ final class MediaScanResult
         return false;
     }
 
+    /**
+     * Codes of every finding, in detection order.
+     *
+     * @return array<int, string>
+     */
+    public function codes(): array
+    {
+        return array_values(array_filter(array_map(
+            static fn (array $finding): ?string => $finding['code'] ?? null,
+            $this->findings
+        )));
+    }
+
     public function rank(string $severity): int
     {
         return self::RANK[$severity] ?? 0;
