@@ -7,6 +7,7 @@ use Bale\Core\Jobs\Wp\ImportWpPostJob;
 use Bale\Core\Jobs\Wp\MigrateWpMediaPostJob;
 use Bale\Core\Jobs\Wp\MigrateWpThumbnailPostJob;
 use Bale\Core\Jobs\Wp\StartWpMediaRunJob;
+use Bale\Core\Jobs\Wp\StartWpThumbnailRunJob;
 use Bale\Core\Models\WpMigrationItem;
 use Bale\Core\Models\WpMigrationRun;
 use Bale\Core\Support\WpTenant;
@@ -63,10 +64,11 @@ class WpMigrationRunService
      *
      * @param  array<int, array<string, string|null>>  $posts
      * @param  array<string, mixed>  $meta
+     * @param  array<string, array{attachment_id: string, url: string, mime: string}>  $thumbnails
      */
-    public function startSqlRun(string $baleId, string $authorId, array $posts, array $meta = []): WpMigrationRun
+    public function startSqlRun(string $baleId, string $authorId, array $posts, array $meta = [], array $thumbnails = []): WpMigrationRun
     {
-        $run = $this->createSqlRun($baleId, $authorId, $posts, $meta);
+        $run = $this->createSqlRun($baleId, $authorId, $posts, $meta, $thumbnails);
 
         $this->dispatchSqlBatch($run);
 
@@ -77,10 +79,15 @@ class WpMigrationRunService
      * Create the SQL run and its items without dispatching anything (used by
      * `--sync` runs that process the items inline).
      *
+     * The featured image of each post (from `wp_postmeta._thumbnail_id`) is
+     * carried inside the item payload, so the chained thumbnail stage never has
+     * to parse the dump a second time.
+     *
      * @param  array<int, array<string, string|null>>  $posts
      * @param  array<string, mixed>  $meta
+     * @param  array<string, array{attachment_id: string, url: string, mime: string}>  $thumbnails
      */
-    public function createSqlRun(string $baleId, string $authorId, array $posts, array $meta = []): WpMigrationRun
+    public function createSqlRun(string $baleId, string $authorId, array $posts, array $meta = [], array $thumbnails = []): WpMigrationRun
     {
         $run = WpMigrationRun::create([
             'bale_id' => $baleId,
@@ -95,10 +102,19 @@ class WpMigrationRunService
         $items = [];
 
         foreach ($posts as $post) {
+            $wpId = (string) ($post['ID'] ?? '');
+
+            $featured = $thumbnails[$wpId] ?? null;
+
+            if (is_array($featured) && ($featured['url'] ?? '') !== '') {
+                $post['thumbnail_url'] = $featured['url'];
+                $post['thumbnail_mime'] = $featured['mime'] ?? '';
+            }
+
             $items[] = [
                 'id' => (string) Str::uuid(),
                 'run_id' => $run->id,
-                'wp_post_id' => (string) ($post['ID'] ?? ''),
+                'wp_post_id' => $wpId,
                 'post_id' => null,
                 'status' => WpMigrationItem::STATUS_PENDING,
                 'payload' => json_encode($post, JSON_UNESCAPED_UNICODE),
@@ -135,21 +151,18 @@ class WpMigrationRunService
         $batch = Bus::batch($jobs)
             ->name('wp-import:'.$run->id)
             ->onQueue($this->sqlQueue())
-            ->allowFailures();
-
-        if ($this->shouldChainMedia()) {
+            ->allowFailures()
             // `then` only fires when the last job to finish *succeeded*
             // (Batch::recordSuccessfulJob); Batch::recordFailedJob never
             // invokes `then`. Because the batch uses allowFailures(), a failed
-            // last job would therefore leave the media stage permanently
+            // last job would therefore leave the next stages permanently
             // unstarted — so we also register `finally`, which fires once every
-            // job has run either way. chainMedia() is idempotent, so both
-            // firing on the happy path is harmless.
-            $batch->then(new StartWpMediaRunJob($run->id))
-                ->finally(new StartWpMediaRunJob($run->id));
-        }
-
-        $batch = $batch->dispatch();
+            // job has run either way. The callback is idempotent, and it also
+            // finishes the run when the chained stages are disabled, so the
+            // status endpoint never polls forever.
+            ->then(new StartWpMediaRunJob($run->id))
+            ->finally(new StartWpMediaRunJob($run->id))
+            ->dispatch();
 
         $run->forceFill(['batch_id' => $batch->id])->save();
     }
@@ -229,6 +242,12 @@ class WpMigrationRunService
         if ($itemIds->isEmpty()) {
             $this->finish($run);
 
+            // Nothing to dispatch means no callback will fire; keep the chain
+            // moving so the thumbnail stage is not stranded.
+            if ($run->parent_id) {
+                $this->chainThumbnails((string) $run->parent_id);
+            }
+
             return;
         }
 
@@ -238,10 +257,10 @@ class WpMigrationRunService
             ->name('wp-media:'.$run->id)
             ->onQueue($this->mediaQueue())
             ->allowFailures()
-            // `finally` (not just `then`) so a failing last job cannot leave the
-            // run stuck in `running` and make the status endpoint poll forever.
-            ->then(new FinalizeWpRunJob($run->id))
-            ->finally(new FinalizeWpRunJob($run->id))
+            // Also chains the thumbnail stage, so `finally` (not just `then`)
+            // keeps the chain alive even when the last media job failed.
+            ->then(new StartWpThumbnailRunJob($run->id))
+            ->finally(new StartWpThumbnailRunJob($run->id))
             ->dispatch();
 
         $run->forceFill(['batch_id' => $batch->id])->save();
@@ -255,7 +274,7 @@ class WpMigrationRunService
      * @param  array<int, array{post_id: string, url: string, wp_post_id?: string|null, title?: string|null}>  $posts
      * @param  array<string, mixed>  $meta
      */
-    public function startThumbnailRun(string $baleId, array $posts, array $meta = [], int $limit = 0): ?WpMigrationRun
+    public function startThumbnailRun(string $baleId, array $posts, array $meta = [], int $limit = 0, ?string $parentId = null): ?WpMigrationRun
     {
         if ($posts === []) {
             return null;
@@ -268,6 +287,7 @@ class WpMigrationRunService
         $run = WpMigrationRun::create([
             'bale_id' => $baleId,
             'type' => 'thumbnail',
+            'parent_id' => $parentId,
             'status' => 'running',
             'total' => count($posts),
             'started_at' => now(),
@@ -332,6 +352,10 @@ class WpMigrationRunService
      * Idempotent: it is registered as both `then` and `finally` on the SQL batch,
      * so on the happy path it is invoked twice for the same run. The second call
      * must not create a second media run.
+     *
+     * Owns the whole downstream chain: when the media stage is disabled or finds
+     * nothing to migrate, the thumbnail stage is started right here instead of
+     * waiting for a media batch callback that will never fire.
      */
     public function chainMedia(string $sqlRunId): void
     {
@@ -347,29 +371,157 @@ class WpMigrationRunService
         // resolved by a previous invocation.
         $this->finish($sqlRun);
 
-        // Already chained (either resolved to a media run, or resolved to "no
-        // media needed" by an explicit null) → nothing left to start.
-        if (array_key_exists('media_run_id', $meta) || $this->mediaRunExists($sqlRunId)) {
+        if ($this->shouldChainMedia()) {
+            $mediaRun = $this->childRun($sqlRunId, 'media');
+
+            if ($mediaRun) {
+                // A media batch owns the next link. When it already finished
+                // (callback lost, redispatch, older run) chain right away.
+                if ($mediaRun->status === 'finished') {
+                    $this->chainThumbnails($sqlRunId);
+                }
+
+                return;
+            }
+
+            // Already resolved to "no media needed" → fall through to thumbnails.
+            if (! array_key_exists('media_run_id', $meta)) {
+                $mediaRun = $this->startMediaRun(
+                    $sqlRun->bale_id,
+                    $meta,
+                    $sqlRun->id,
+                    (int) ($meta['media_limit'] ?? 0),
+                );
+
+                // Record that the chain resolved (even when there was no media),
+                // so the status endpoint knows it should stop waiting.
+                $sqlRun->forceFill([
+                    'meta' => array_merge($meta, ['media_run_id' => $mediaRun?->id]),
+                ])->save();
+
+                if ($mediaRun) {
+                    // The media batch callback chains the thumbnail stage.
+                    return;
+                }
+            }
+        } elseif (! array_key_exists('media_run_id', $meta)) {
+            $sqlRun->forceFill(['meta' => array_merge($meta, ['media_run_id' => null])])->save();
+        }
+
+        $this->chainThumbnails($sqlRunId);
+    }
+
+    /**
+     * Second link of the chain: start the thumbnail stage for an imported SQL
+     * run, using the featured images carried in the item payloads.
+     *
+     * Idempotent, and it always records `thumbnail_run_id` — including an
+     * explicit `null` when there is nothing to do — so the progress endpoint can
+     * tell "not chained yet" apart from "chained and nothing to migrate".
+     */
+    public function chainThumbnails(string $sqlRunId): void
+    {
+        $sqlRun = WpMigrationRun::find($sqlRunId);
+
+        if (! $sqlRun) {
             return;
         }
 
-        $mediaRun = $this->startMediaRun(
-            $sqlRun->bale_id,
-            $meta,
-            $sqlRun->id,
-            (int) ($meta['media_limit'] ?? 0),
-        );
+        $meta = $sqlRun->meta ?? [];
 
-        // Record that the chain resolved (even when there was no media), so the
-        // status endpoint knows it should stop waiting.
+        if (array_key_exists('thumbnail_run_id', $meta) || $this->childRun($sqlRunId, 'thumbnail')) {
+            return;
+        }
+
+        $run = $this->shouldChainThumbnails() ? $this->startThumbnailRunFromSql($sqlRun) : null;
+
         $sqlRun->forceFill([
-            'meta' => array_merge($meta, ['media_run_id' => $mediaRun?->id]),
+            'meta' => array_merge($meta, ['thumbnail_run_id' => $run?->id]),
         ])->save();
     }
 
-    protected function mediaRunExists(string $sqlRunId): bool
+    /**
+     * Build (and dispatch) the thumbnail run for the posts of a finished SQL run
+     * that carry a featured image and do not have a thumbnail yet.
+     *
+     * Returns null when there is nothing left to do — e.g. the dump was
+     * posts-only, or every post already has a thumbnail.
+     */
+    public function startThumbnailRunFromSql(WpMigrationRun $sqlRun): ?WpMigrationRun
     {
-        return WpMigrationRun::where('parent_id', $sqlRunId)->exists();
+        $items = WpMigrationItem::where('run_id', $sqlRun->id)
+            ->where('status', WpMigrationItem::STATUS_IMPORTED)
+            ->whereNotNull('post_id')
+            ->get();
+
+        $candidates = [];
+
+        foreach ($items as $item) {
+            $payload = $item->payload ?? [];
+            $url = (string) ($payload['thumbnail_url'] ?? '');
+
+            if ($url === '') {
+                continue;
+            }
+
+            $mime = (string) ($payload['thumbnail_mime'] ?? '');
+
+            if ($mime !== '' && ! str_starts_with($mime, 'image/')) {
+                continue;
+            }
+
+            $candidates[] = [
+                'post_id' => (string) $item->post_id,
+                'wp_post_id' => (string) $item->wp_post_id,
+                'url' => $url,
+                'title' => (string) ($item->result['title'] ?? ''),
+            ];
+        }
+
+        if ($candidates === []) {
+            return null;
+        }
+
+        // Never re-download a thumbnail that is already there (re-runs,
+        // redispatch, a manual backfill that ran first).
+        $connection = $this->tenant->connection($sqlRun->bale_id);
+
+        $already = DB::connection($connection)
+            ->table('posts')
+            ->whereIn('id', array_column($candidates, 'post_id'))
+            ->whereNotNull('thumbnail')
+            ->pluck('id')
+            ->all();
+
+        if ($already !== []) {
+            $skip = array_flip($already);
+            $candidates = array_values(array_filter(
+                $candidates,
+                fn (array $candidate) => ! isset($skip[$candidate['post_id']])
+            ));
+        }
+
+        if ($candidates === []) {
+            return null;
+        }
+
+        $meta = array_diff_key($sqlRun->meta ?? [], array_flip(['media_run_id', 'thumbnail_run_id']));
+
+        return $this->startThumbnailRun(
+            $sqlRun->bale_id,
+            $candidates,
+            array_merge($meta, ['source' => 'chain']),
+            (int) ($meta['thumbnail_limit'] ?? 0),
+            $sqlRun->id,
+        );
+    }
+
+    protected function childRun(string $parentId, string $type): ?WpMigrationRun
+    {
+        return WpMigrationRun::where('parent_id', $parentId)
+            ->where('type', $type)
+            ->latest()
+            ->first();
     }
 
     public function finish(WpMigrationRun $run, string $status = 'finished'): void
@@ -388,16 +540,19 @@ class WpMigrationRunService
         $pending = (int) ($counts[WpMigrationItem::STATUS_PENDING] ?? 0);
 
         $mediaPayload = null;
+        $thumbnailPayload = null;
         $mediaResolved = true;
+        $thumbnailResolved = true;
 
         if ($run->type === 'sql') {
             $meta = $run->meta ?? [];
-            $media = WpMigrationRun::where('parent_id', $run->id)->latest()->first();
+
+            $media = $this->childRun($run->id, 'media');
+            $thumbnail = $this->childRun($run->id, 'thumbnail');
 
             if ($media) {
                 $mediaCounts = $this->counts($media);
                 $mediaPending = (int) ($mediaCounts[WpMigrationItem::STATUS_PENDING] ?? 0);
-                $mediaResolved = $mediaPending === 0;
 
                 $mediaPayload = [
                     'id' => $media->id,
@@ -406,13 +561,37 @@ class WpMigrationRunService
                     'pending' => $mediaPending,
                     'counts' => $mediaCounts,
                 ];
+
+                $mediaResolved = $mediaPending === 0;
             } else {
                 // Either the chain has not run yet (wait) or it ran and found
                 // nothing to migrate (media_run_id explicitly null → resolved).
                 $mediaResolved = array_key_exists('media_run_id', $meta)
                     && ($meta['media_run_id'] ?? null) === null;
             }
+
+            if ($thumbnail) {
+                $thumbnailCounts = $this->counts($thumbnail);
+                $thumbnailPending = (int) ($thumbnailCounts[WpMigrationItem::STATUS_PENDING] ?? 0);
+
+                $thumbnailPayload = [
+                    'id' => $thumbnail->id,
+                    'status' => $thumbnail->status,
+                    'total' => (int) $thumbnail->total,
+                    'pending' => $thumbnailPending,
+                    'counts' => $thumbnailCounts,
+                ];
+
+                $thumbnailResolved = $thumbnailPending === 0;
+            } else {
+                // The thumbnail stage only starts after the media batch is done,
+                // so it may legitimately not exist yet.
+                $thumbnailResolved = array_key_exists('thumbnail_run_id', $meta)
+                    && ($meta['thumbnail_run_id'] ?? null) === null;
+            }
         }
+
+        $stagesResolved = $mediaResolved && $thumbnailResolved;
 
         $errors = WpMigrationItem::where('run_id', $run->id)
             ->where('status', WpMigrationItem::STATUS_FAILED)
@@ -442,9 +621,10 @@ class WpMigrationRunService
                 'finished_at' => optional($run->finished_at)->toIso8601String(),
             ],
             'media' => $mediaPayload,
+            'thumbnail' => $thumbnailPayload,
             'errors' => $errors,
             'security' => $security,
-            'done' => $pending === 0 && $mediaResolved,
+            'done' => $pending === 0 && $stagesResolved,
         ];
     }
 
@@ -467,5 +647,10 @@ class WpMigrationRunService
     protected function shouldChainMedia(): bool
     {
         return (bool) config('core.wp_migration.chain_media', true);
+    }
+
+    protected function shouldChainThumbnails(): bool
+    {
+        return (bool) config('core.wp_migration.chain_thumbnails', true);
     }
 }

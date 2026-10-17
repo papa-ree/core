@@ -159,6 +159,67 @@
                 </label>
             </div>
 
+            {{-- Legacy WordPress base URL --}}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="wp-base">
+                    {{ __('WordPress Base URL') }}
+                </label>
+                <input
+                    id="wp-base"
+                    type="url"
+                    wire:model="wpBase"
+                    placeholder="https://contoh.ponorogo.go.id"
+                    class="block w-full sm:w-96 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600
+                           text-gray-900 dark:text-white rounded-lg text-sm font-mono
+                           focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ __('Used by the media and featured-image stages to download from the old site. Featured images are only downloaded from this host — a dump cannot point them anywhere else.') }}
+                </p>
+                @error('wpBase')
+                    <p class="mt-1.5 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                @enderror
+            </div>
+
+            {{-- Chained stages --}}
+            <div class="space-y-3">
+                <label class="inline-flex items-start gap-2.5 cursor-pointer" for="chain-media">
+                    <input
+                        id="chain-media"
+                        type="checkbox"
+                        wire:model="chainMedia"
+                        class="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-gray-600
+                               text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <span>
+                        <span class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {{ __('Import media automatically') }}
+                        </span>
+                        <span class="block mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                            {{ __('Starts as soon as the post import batch finishes. Images become WebP on the storage/CDN and are scanned for backdoors first.') }}
+                        </span>
+                    </span>
+                </label>
+
+                <label class="inline-flex items-start gap-2.5 cursor-pointer" for="chain-thumbnails">
+                    <input
+                        id="chain-thumbnails"
+                        type="checkbox"
+                        wire:model="chainThumbnails"
+                        class="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-gray-600
+                               text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <span>
+                        <span class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {{ __('Import featured images (thumbnails) automatically') }}
+                        </span>
+                        <span class="block mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                            {{ __('Requires a full dump with wp_postmeta. Runs after the media stage; posts whose WordPress article has no featured image are left without a thumbnail.') }}
+                        </span>
+                    </span>
+                </label>
+            </div>
+
             {{-- Memory Notice --}}
             <div class="flex items-start gap-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-indigo-100 dark:border-indigo-900">
                 <x-lucide-cpu class="w-4 h-4 text-indigo-500 mt-0.5 shrink-0" />

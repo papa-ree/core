@@ -41,7 +41,7 @@ class WpMigrationRedispatchCommand extends Command
             return self::FAILURE;
         }
 
-        if (! in_array($run->type, ['sql', 'media'], true)) {
+        if (! in_array($run->type, ['sql', 'media', 'thumbnail'], true)) {
             $this->error("Run [{$run->id}] has unsupported type [{$run->type}].");
 
             return self::FAILURE;
@@ -115,8 +115,10 @@ class WpMigrationRedispatchCommand extends Command
 
         if ($run->type === 'sql') {
             $service->dispatchSqlBatch($run);
-        } else {
+        } elseif ($run->type === 'media') {
             $service->dispatchMediaBatch($run);
+        } else {
+            $service->dispatchThumbnailBatch($run);
         }
 
         $run->refresh();

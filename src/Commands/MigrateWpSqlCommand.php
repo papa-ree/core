@@ -41,11 +41,13 @@ class MigrateWpSqlCommand extends Command
         {--queue= : Queue name for the dispatched jobs (default: wp-import)}
         {--sync : Run inline instead of dispatching queued jobs}
         {--no-chain : Do not auto-start the media stage after the import}
+        {--no-chain-thumbnails : Do not auto-start the thumbnail (featured image) stage after the media stage}
         {--wp-base= : Legacy WordPress base URL, forwarded to the chained media stage}
         {--source-dir= : Local uploads copy, forwarded to the media stage}
         {--quarantine-dir= : Quarantine directory, forwarded to the media stage}
         {--strict : Strict security scan, forwarded to the media stage}
-        {--media-limit=0 : Maximum posts for the chained media stage (0 = all)}';
+        {--media-limit=0 : Maximum posts for the chained media stage (0 = all)}
+        {--thumbnail-limit=0 : Maximum posts for the chained thumbnail stage (0 = all)}';
 
     protected $description = 'Import WordPress posts from a .sql dump into a Bale CMS tenant, one queued job per post';
 
@@ -120,6 +122,12 @@ class MigrateWpSqlCommand extends Command
         $prefix = (string) $this->option('prefix');
         $repairEncoding = ! (bool) $this->option('no-fix-encoding');
         $posts = $parser->parse($sql, $prefix, $repairEncoding);
+
+        // Featured images (`wp_postmeta._thumbnail_id`) — available whenever the
+        // dump is a full mysqldump. Empty for a posts-only export, in which case
+        // the chained thumbnail stage simply resolves to "nothing to do".
+        $thumbnails = $parser->parseThumbnails($sql, $prefix);
+
         $limit = (int) $this->option('limit');
 
         if ($limit > 0) {
@@ -133,6 +141,13 @@ class MigrateWpSqlCommand extends Command
             $parser->filteredCount,
             count($posts),
             $limit > 0 ? ' (limited to '.$limit.')' : ''
+        ));
+
+        $this->line(sprintf(
+            'Featured images: <info>%d</info> attachment(s) referenced by <info>%d</info> post(s)%s',
+            $parser->attachmentCount,
+            count($thumbnails),
+            $thumbnails === [] ? ' <comment>(posts-only dump: no wp_postmeta)</comment>' : ''
         ));
 
         if ($parser->encodingRepairedCount > 0) {
@@ -151,6 +166,10 @@ class MigrateWpSqlCommand extends Command
         $chainMedia = ! (bool) $this->option('no-chain');
         config(['core.wp_migration.chain_media' => $chainMedia]);
 
+        if ($this->option('no-chain-thumbnails')) {
+            config(['core.wp_migration.chain_thumbnails' => false]);
+        }
+
         if ($queue = $this->option('queue')) {
             config(['core.wp_migration.sql_queue' => (string) $queue]);
         }
@@ -162,6 +181,7 @@ class MigrateWpSqlCommand extends Command
             'quarantine_dir' => $this->option('quarantine-dir') ?: null,
             'strict' => (bool) $this->option('strict'),
             'media_limit' => (int) $this->option('media-limit'),
+            'thumbnail_limit' => (int) $this->option('thumbnail-limit'),
             'file' => basename($file),
             'table_prefix' => $prefix,
             'repair_encoding' => $repairEncoding,
@@ -172,10 +192,10 @@ class MigrateWpSqlCommand extends Command
         $runs = app(WpMigrationRunService::class);
 
         if ((bool) $this->option('sync')) {
-            return $this->runSync($runs, $bale->id, $author, $posts, $meta, $chainMedia);
+            return $this->runSync($runs, $bale->id, $author, $posts, $meta, $chainMedia, $thumbnails);
         }
 
-        $run = $runs->startSqlRun($bale->id, $author, $posts, $meta);
+        $run = $runs->startSqlRun($bale->id, $author, $posts, $meta, $thumbnails);
 
         $this->info(sprintf(
             'Dispatched SQL run <info>%s</info> with <info>%d</info> post(s) to the <info>%s</info> queue.',
@@ -185,7 +205,14 @@ class MigrateWpSqlCommand extends Command
         ));
 
         if ($chainMedia) {
-            $this->comment('The media stage will start automatically once the import batch finishes.');
+            $stages = ['media'];
+            if (config('core.wp_migration.chain_thumbnails')) {
+                $stages[] = 'thumbnail';
+            }
+            $this->comment(sprintf(
+                'The %s stage(s) will start automatically once the previous batch finishes.',
+                implode(' + ', $stages)
+            ));
         }
 
         $this->comment('Make sure a queue worker is running, e.g.: php artisan queue:work --queue=wp-import,wp-media');
@@ -198,6 +225,7 @@ class MigrateWpSqlCommand extends Command
      *
      * @param  array<int, array<string, string|null>>  $posts
      * @param  array<string, mixed>  $meta
+     * @param  array<string, array{attachment_id: string, url: string, mime: string}>  $thumbnails
      */
     protected function runSync(
         WpMigrationRunService $runs,
@@ -205,9 +233,10 @@ class MigrateWpSqlCommand extends Command
         string $author,
         array $posts,
         array $meta,
-        bool $chainMedia
+        bool $chainMedia,
+        array $thumbnails = []
     ): int {
-        $run = $runs->createSqlRun($baleId, $author, $posts, $meta);
+        $run = $runs->createSqlRun($baleId, $author, $posts, $meta, $thumbnails);
 
         $bar = $this->output->createProgressBar(count($posts));
         $bar->start();
@@ -245,15 +274,16 @@ class MigrateWpSqlCommand extends Command
         }
 
         // Mark the run as finished. Sync runs are not followed by the UI, so we
-        // resolve the media-chain flag explicitly (no queued media batch here).
+        // resolve the chained-stage flags explicitly (no queued batches here).
         $run->forceFill([
             'status' => 'finished',
             'finished_at' => now(),
-            'meta' => array_merge($meta, ['media_run_id' => null]),
+            'meta' => array_merge($meta, ['media_run_id' => null, 'thumbnail_run_id' => null]),
         ])->save();
 
         if ($chainMedia) {
-            $this->comment('Run the media stage separately: php artisan core:migrate-wp-media --bale='.$baleId.' --wp-base=<url>');
+            $this->comment('Run the next stages separately, e.g.: php artisan core:migrate-wp-media --bale='.$baleId.' --wp-base=<url>');
+            $this->comment('Then: php artisan core:migrate-wp-thumbnails --bale='.$baleId.' --file=<full dump> --wp-base=<url> --sync');
         }
 
         return self::SUCCESS;

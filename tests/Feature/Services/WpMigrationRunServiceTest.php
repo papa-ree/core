@@ -2,7 +2,9 @@
 
 use Bale\Core\Jobs\Wp\ImportWpPostJob;
 use Bale\Core\Jobs\Wp\MigrateWpMediaPostJob;
+use Bale\Core\Jobs\Wp\MigrateWpThumbnailPostJob;
 use Bale\Core\Jobs\Wp\StartWpMediaRunJob;
+use Bale\Core\Jobs\Wp\StartWpThumbnailRunJob;
 use Bale\Core\Models\WpMigrationItem;
 use Bale\Core\Models\WpMigrationRun;
 use Bale\Core\Services\WpMigrationRunService;
@@ -49,6 +51,60 @@ if (! function_exists('wp_test_posts_table')) {
             $table->softDeletes();
             $table->timestamps();
         });
+    }
+}
+
+if (! function_exists('wp_service_thumbnail_column')) {
+    /** The shared test posts table predates `thumbnail`; add it when missing. */
+    function wp_service_thumbnail_column(): void
+    {
+        if (! Schema::hasColumn('posts', 'thumbnail')) {
+            Schema::table('posts', function (Blueprint $table) {
+                $table->string('thumbnail')->nullable();
+            });
+        }
+    }
+}
+
+if (! function_exists('wp_service_post')) {
+    function wp_service_post(string $title, string $slug, ?string $content = null, ?string $thumbnail = null): string
+    {
+        wp_service_thumbnail_column();
+
+        $id = (string) Str::uuid();
+
+        DB::table('posts')->insert([
+            'id' => $id,
+            'author' => (string) Str::uuid(),
+            'title' => $title,
+            'slug' => $slug,
+            'content' => $content ?? json_encode(['blocks' => [['type' => 'paragraph', 'data' => ['text' => 'x']]]]),
+            'thumbnail' => $thumbnail,
+            'published' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $id;
+    }
+}
+
+if (! function_exists('wp_service_imported')) {
+    /**
+     * Mark every item of a run as imported onto the given tenant post ids.
+     *
+     * @param  array<int, string>  $postIds
+     */
+    function wp_service_imported(string $runId, array $postIds): void
+    {
+        $items = WpMigrationItem::where('run_id', $runId)->orderBy('wp_post_id')->get();
+
+        foreach ($items as $i => $item) {
+            $item->forceFill([
+                'status' => WpMigrationItem::STATUS_IMPORTED,
+                'post_id' => $postIds[$i] ?? null,
+            ])->save();
+        }
     }
 }
 
@@ -248,4 +304,223 @@ it('resolves the chain without a media run when no post has placeholders', funct
     expect(WpMigrationRun::where('parent_id', $run->id)->count())->toBe(0)
         ->and($run->fresh()->meta['media_run_id'])->toBeNull()
         ->and($service->progress($run->fresh())['done'])->toBeTrue();
+});
+
+// ---------------------------------------------------------------------------
+// Thumbnail chain (SQL → media → featured images)
+// ---------------------------------------------------------------------------
+
+it('carries the featured image into the SQL item payload', function () {
+    Bus::fake();
+
+    $service = app(WpMigrationRunService::class);
+
+    $run = $service->createSqlRun(
+        'bale-1',
+        'author-1',
+        [
+            ['ID' => '1', 'post_title' => 'A'],
+            ['ID' => '2', 'post_title' => 'B'],
+        ],
+        ['slug' => 'dindik'],
+        [
+            '1' => ['attachment_id' => '10', 'url' => 'https://old.test/a.jpg', 'mime' => 'image/jpeg'],
+        ],
+    );
+
+    $withImage = WpMigrationItem::where('run_id', $run->id)->where('wp_post_id', '1')->first();
+    expect($withImage->payload['thumbnail_url'])->toBe('https://old.test/a.jpg')
+        ->and($withImage->payload['thumbnail_mime'])->toBe('image/jpeg');
+
+    // A post without a featured image must stay untouched (no null keys).
+    $withoutImage = WpMigrationItem::where('run_id', $run->id)->where('wp_post_id', '2')->first();
+    expect($withoutImage->payload)->not->toHaveKey('thumbnail_url');
+});
+
+it('chains a thumbnail run after the SQL stage when there is no media', function () {
+    Bus::fake();
+
+    $service = app(WpMigrationRunService::class);
+
+    $run = $service->createSqlRun(
+        'bale-1',
+        'author-1',
+        [
+            ['ID' => '1', 'post_title' => 'A'],
+            ['ID' => '2', 'post_title' => 'B'],
+        ],
+        ['slug' => 'dindik', 'wp_base' => 'https://old.test'],
+        [
+            '1' => ['attachment_id' => '10', 'url' => 'https://old.test/a.jpg', 'mime' => 'image/jpeg'],
+            '2' => ['attachment_id' => '11', 'url' => 'https://old.test/b.jpg', 'mime' => 'image/jpeg'],
+        ],
+    );
+
+    wp_service_imported($run->id, [wp_service_post('A', 'a'), wp_service_post('B', 'b')]);
+
+    // Invoked twice: `then` and `finally` both fire on the happy path.
+    $service->chainMedia($run->id);
+    $service->chainMedia($run->id);
+
+    $run->refresh();
+
+    expect($run->meta['media_run_id'])->toBeNull()
+        ->and($run->meta['thumbnail_run_id'])->not->toBeNull();
+
+    $thumbnail = WpMigrationRun::where('parent_id', $run->id)->where('type', 'thumbnail')->first();
+
+    expect($thumbnail)->not->toBeNull()
+        ->and($thumbnail->total)->toBe(2)
+        ->and($thumbnail->meta['wp_base'])->toBe('https://old.test')
+        ->and($thumbnail->meta['source'])->toBe('chain');
+
+    expect($thumbnail->parent_id)->toBe($run->id);
+
+    $items = WpMigrationItem::where('run_id', $thumbnail->id)->get();
+    expect($items)->toHaveCount(2)
+        ->and($items->pluck('payload')->pluck('url')->all())
+        ->toBe(['https://old.test/a.jpg', 'https://old.test/b.jpg']);
+
+    Bus::assertBatched(fn ($batch) => $batch->jobs->first() instanceof MigrateWpThumbnailPostJob);
+
+    // Not done while the thumbnail stage still has pending work.
+    $progress = $service->progress($run->fresh());
+    expect($progress['done'])->toBeFalse()
+        ->and($progress['thumbnail']['total'])->toBe(2)
+        ->and($progress['thumbnail']['pending'])->toBe(2);
+
+    WpMigrationItem::where('run_id', $thumbnail->id)->update(['status' => WpMigrationItem::STATUS_MIGRATED]);
+
+    expect($service->progress($run->fresh())['done'])->toBeTrue();
+});
+
+it('resolves the thumbnail stage to none for a posts-only dump', function () {
+    Bus::fake();
+
+    $service = app(WpMigrationRunService::class);
+    $run = $service->createSqlRun('bale-1', 'author-1', [['ID' => '1', 'post_title' => 'A']], ['slug' => 'dindik']);
+
+    wp_service_imported($run->id, [wp_service_post('A', 'a')]);
+
+    $service->chainMedia($run->id);
+
+    $run->refresh();
+
+    expect($run->meta['thumbnail_run_id'])->toBeNull()
+        ->and(WpMigrationRun::where('parent_id', $run->id)->where('type', 'thumbnail')->count())->toBe(0)
+        ->and($service->progress($run->fresh())['thumbnail'])->toBeNull()
+        ->and($service->progress($run->fresh())['done'])->toBeTrue();
+});
+
+it('skips posts that already have a thumbnail', function () {
+    Bus::fake();
+
+    $service = app(WpMigrationRunService::class);
+
+    $run = $service->createSqlRun(
+        'bale-1',
+        'author-1',
+        [['ID' => '1', 'post_title' => 'A']],
+        ['slug' => 'dindik'],
+        ['1' => ['attachment_id' => '10', 'url' => 'https://old.test/a.jpg', 'mime' => 'image/jpeg']],
+    );
+
+    wp_service_imported($run->id, [wp_service_post('A', 'a', null, 'already-there.webp')]);
+
+    $service->chainMedia($run->id);
+    $run->refresh();
+
+    expect($run->meta['thumbnail_run_id'])->toBeNull()
+        ->and(WpMigrationRun::where('parent_id', $run->id)->where('type', 'thumbnail')->count())->toBe(0);
+});
+
+it('ignores a featured image that does not point at an image mime type', function () {
+    Bus::fake();
+
+    $service = app(WpMigrationRunService::class);
+
+    $run = $service->createSqlRun(
+        'bale-1',
+        'author-1',
+        [['ID' => '1', 'post_title' => 'A']],
+        ['slug' => 'dindik'],
+        ['1' => ['attachment_id' => '10', 'url' => 'https://old.test/evil.pdf', 'mime' => 'application/pdf']],
+    );
+
+    wp_service_imported($run->id, [wp_service_post('A', 'a')]);
+
+    $service->chainMedia($run->id);
+
+    expect($run->fresh()->meta['thumbnail_run_id'])->toBeNull();
+});
+
+it('finishes the run when every chained stage is disabled', function () {
+    Bus::fake();
+
+    config([
+        'core.wp_migration.chain_media' => false,
+        'core.wp_migration.chain_thumbnails' => false,
+    ]);
+
+    $service = app(WpMigrationRunService::class);
+    $run = $service->createSqlRun(
+        'bale-1',
+        'author-1',
+        [['ID' => '1', 'post_title' => 'A']],
+        ['slug' => 'dindik'],
+        ['1' => ['attachment_id' => '10', 'url' => 'https://old.test/a.jpg', 'mime' => 'image/jpeg']],
+    );
+
+    // The import stage has to be finished as well for the run to report done.
+    WpMigrationItem::where('run_id', $run->id)->update(['status' => WpMigrationItem::STATUS_IMPORTED]);
+
+    $service->chainMedia($run->id);
+    $run->refresh();
+
+    expect(WpMigrationRun::where('parent_id', $run->id)->count())->toBe(0)
+        ->and($run->status)->toBe('finished')
+        ->and($run->meta['media_run_id'])->toBeNull()
+        ->and($run->meta['thumbnail_run_id'])->toBeNull()
+        ->and($service->progress($run->fresh())['done'])->toBeTrue();
+});
+
+it('still chains the thumbnail stage when only the media stage is disabled', function () {
+    Bus::fake();
+
+    config(['core.wp_migration.chain_media' => false]);
+
+    $service = app(WpMigrationRunService::class);
+    $run = $service->createSqlRun(
+        'bale-1',
+        'author-1',
+        [['ID' => '1', 'post_title' => 'A']],
+        ['slug' => 'dindik'],
+        ['1' => ['attachment_id' => '10', 'url' => 'https://old.test/a.jpg', 'mime' => 'image/jpeg']],
+    );
+
+    wp_service_imported($run->id, [wp_service_post('A', 'a')]);
+
+    $service->chainMedia($run->id);
+    $run->refresh();
+
+    expect(WpMigrationRun::where('parent_id', $run->id)->where('type', 'media')->count())->toBe(0)
+        ->and($run->meta['media_run_id'])->toBeNull()
+        ->and($run->meta['thumbnail_run_id'])->not->toBeNull();
+});
+
+it('registers the thumbnail chain on the media batch callbacks', function () {
+    Bus::fake();
+
+    wp_service_post(
+        'With media',
+        'with-media-cb',
+        json_encode(['blocks' => [['type' => 'image-placeholder', 'data' => ['wp_src' => 'http://example.test/a.jpg']]]]),
+    );
+
+    app(WpMigrationRunService::class)->startMediaRun('bale-1', ['slug' => 'dindik'], 'sql-run-1');
+
+    // The media batch is what starts the thumbnail stage, so both callbacks must
+    // be the chaining one — not the plain FinalizeWpRunJob.
+    Bus::assertBatched(fn ($batch) => ($batch->thenCallbacks()[0] ?? null) instanceof StartWpThumbnailRunJob
+        && ($batch->finallyCallbacks()[0] ?? null) instanceof StartWpThumbnailRunJob);
 });

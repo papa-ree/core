@@ -101,6 +101,14 @@ return [
         'chain_media' => env('WP_MIGRATION_CHAIN_MEDIA', true),
 
         /*
+         | Otomatis mulai tahap thumbnail (featured image) setelah tahap media
+         | selesai. Butuh dump lengkap yang memuat tabel `wp_postmeta`
+         | (`_thumbnail_id`); pada dump "posts-only" tahap ini selesai tanpa
+         | thumbnail (dilaporkan sebagai `thumbnail_run_id = null`).
+         */
+        'chain_thumbnails' => env('WP_MIGRATION_CHAIN_THUMBNAILS', true),
+
+        /*
          | Nama antrian untuk tahap impor SQL.
          */
         'sql_queue' => env('WP_MIGRATION_SQL_QUEUE', 'wp-import'),

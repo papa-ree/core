@@ -3,7 +3,9 @@
 use Bale\Core\Jobs\Wp\FinalizeWpRunJob;
 use Bale\Core\Jobs\Wp\ImportWpPostJob;
 use Bale\Core\Jobs\Wp\MigrateWpMediaPostJob;
+use Bale\Core\Jobs\Wp\MigrateWpThumbnailPostJob;
 use Bale\Core\Jobs\Wp\StartWpMediaRunJob;
+use Bale\Core\Jobs\Wp\StartWpThumbnailRunJob;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\PendingBatch;
 use Illuminate\Support\Collection;
@@ -26,16 +28,18 @@ use Illuminate\Support\Collection;
 
 it('keeps the Batchable trait on every batched wp job', function () {
     expect(class_uses_recursive(ImportWpPostJob::class))->toHaveKey(Batchable::class)
-        ->and(class_uses_recursive(MigrateWpMediaPostJob::class))->toHaveKey(Batchable::class);
+        ->and(class_uses_recursive(MigrateWpMediaPostJob::class))->toHaveKey(Batchable::class)
+        ->and(class_uses_recursive(MigrateWpThumbnailPostJob::class))->toHaveKey(Batchable::class);
 });
 
-it('accepts both wp jobs inside a real PendingBatch', function () {
+it('accepts every wp stage job inside a real PendingBatch', function () {
     $batch = new PendingBatch(app(), new Collection([
         new ImportWpPostJob('run-1', 'item-1'),
         new MigrateWpMediaPostJob('run-1', 'item-1'),
+        new MigrateWpThumbnailPostJob('run-1', 'item-1'),
     ]));
 
-    expect($batch->jobs)->toHaveCount(2)
+    expect($batch->jobs)->toHaveCount(3)
         ->and($batch->jobs->first())->toBeInstanceOf(ImportWpPostJob::class);
 });
 
@@ -57,5 +61,6 @@ it('accepts the invokable batch callbacks without requiring Batchable', function
 it('invokes the completion callbacks with the batch and an optional exception', function () {
     // Mirrors Batch::invokeHandlerCallback(): $handler($batch, $e) — two arguments.
     expect((new StartWpMediaRunJob('run-1'))->__invoke(null, null))->toBeNull()
+        ->and((new StartWpThumbnailRunJob('run-1'))->__invoke(null, null))->toBeNull()
         ->and((new FinalizeWpRunJob('run-1'))->__invoke(null, new RuntimeException('boom')))->toBeNull();
 });

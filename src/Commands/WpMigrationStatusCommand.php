@@ -4,6 +4,7 @@ namespace Bale\Core\Commands;
 
 use Bale\Core\Jobs\Wp\ImportWpPostJob;
 use Bale\Core\Jobs\Wp\MigrateWpMediaPostJob;
+use Bale\Core\Jobs\Wp\MigrateWpThumbnailPostJob;
 use Bale\Core\Models\WpMigrationItem;
 use Bale\Core\Models\WpMigrationRun;
 use Illuminate\Console\Command;
@@ -159,8 +160,12 @@ class WpMigrationStatusCommand extends Command
             ['Table prefix', (string) ($meta['table_prefix'] ?? '—')],
             ['Source', (string) ($meta['source'] ?? '—')],
             ['Author', (string) ($meta['author'] ?? '—')],
+            ['Featured images (dump)', (string) ($meta['featured_images'] ?? '—')],
             ['Chained media run', array_key_exists('media_run_id', $meta)
                 ? ((string) ($meta['media_run_id'] ?? 'none needed'))
+                : 'not resolved yet'],
+            ['Chained thumbnail run', array_key_exists('thumbnail_run_id', $meta)
+                ? ((string) ($meta['thumbnail_run_id'] ?? 'none needed'))
                 : 'not resolved yet'],
             ['Started', $this->formatTime($run->started_at)],
             ['Finished', $this->formatTime($run->finished_at)],
@@ -324,6 +329,7 @@ class WpMigrationStatusCommand extends Command
         $longest = max(
             $this->jobTimeout(ImportWpPostJob::class),
             $this->jobTimeout(MigrateWpMediaPostJob::class),
+            $this->jobTimeout(MigrateWpThumbnailPostJob::class),
         );
 
         if ($longest <= 0 || (int) $retryAfter >= $longest) {

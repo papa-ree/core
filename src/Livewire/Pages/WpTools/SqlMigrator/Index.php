@@ -3,6 +3,7 @@
 namespace Bale\Core\Livewire\Pages\WpTools\SqlMigrator;
 
 use Bale\Core\Jobs\Wp\ImportWpPostJob;
+use Bale\Core\Services\MediaMigrationService;
 use Bale\Core\Services\WpMigrationRunService;
 use Bale\Core\Services\WpSqlParser;
 use Bale\Core\Support\WpTenant;
@@ -81,6 +82,23 @@ class Index extends Component
      * @see WpSqlParser::repairMojibake()
      */
     public bool $fixEncoding = true;
+
+    /**
+     * Base URL of the legacy WordPress site, e.g. `https://dindik.ponorogo.go.id`.
+     *
+     * The chained media/thumbnail stages download from the legacy site, and the
+     * thumbnail stage only downloads from this host (a dump is untrusted input,
+     * so its `guid` values are not followed blindly). Leave it empty when you
+     * copied the uploads directory to the server and set a source directory.
+     */
+    #[Validate(['wpBase' => 'nullable|url:http,https'])]
+    public ?string $wpBase = null;
+
+    /** Auto-start the media stage after the import batch finishes. */
+    public bool $chainMedia = true;
+
+    /** Auto-start the featured-image (thumbnail) stage after the media stage. */
+    public bool $chainThumbnails = true;
 
     // -----------------------------------------------------------------------
     // Result / UI State
@@ -196,6 +214,12 @@ class Index extends Component
                 return;
             }
 
+            if ($error = $this->chainOptionError()) {
+                $this->fatalError = $error;
+
+                return;
+            }
+
             $tenant = app(WpTenant::class);
             $connection = $tenant->connection($bale->id);
 
@@ -224,39 +248,83 @@ class Index extends Component
                 return;
             }
 
+            // Featured images live in `wp_postmeta._thumbnail_id` and are only
+            // present in a full mysqldump; a posts-only export simply yields an
+            // empty map and the chained thumbnail stage resolves to "no work".
+            $thumbnails = $parser->parseThumbnails($sqlContent, $this->tablePrefix);
+
+            config([
+                'core.wp_migration.chain_media' => $this->chainMedia,
+                'core.wp_migration.chain_thumbnails' => $this->chainThumbnails,
+            ]);
+
             $run = app(WpMigrationRunService::class)->startSqlRun(
                 baleId: $bale->id,
                 authorId: $this->selectedAuthorId,
                 posts: $posts,
                 meta: [
                     'slug' => (string) $bale->slug,
+                    'wp_base' => $this->wpBase ?: null,
                     'table_prefix' => $this->tablePrefix,
                     'repair_encoding' => $this->fixEncoding,
                     'encoding_repaired' => $parser->encodingRepairedCount,
+                    'featured_images' => count($thumbnails),
                     'file' => method_exists($this->sqlFile, 'getClientOriginalName')
                         ? $this->sqlFile->getClientOriginalName()
                         : null,
                     'source' => 'ui',
                 ],
+                thumbnails: $thumbnails,
             );
 
             $this->runId = $run->id;
 
-            $this->dispatch(
-                'toast',
-                message: $parser->encodingRepairedCount > 0
-                    ? __(':count posts queued for import. Repaired :repaired mojibake text value(s). Processing in the background…', [
-                        'count' => count($posts),
-                        'repaired' => $parser->encodingRepairedCount,
-                    ])
-                    : __(':count posts queued for import. Processing in the background…', ['count' => count($posts)]),
-                type: 'success'
-            );
+            $stages = [];
+            if ($this->chainMedia) {
+                $stages[] = __('media');
+            }
+            if ($this->chainMedia && $this->chainThumbnails) {
+                $stages[] = __('featured images');
+            }
+
+            $message = $parser->encodingRepairedCount > 0
+                ? __(':count posts queued for import. Repaired :repaired mojibake text value(s). Processing in the background…', [
+                    'count' => count($posts),
+                    'repaired' => $parser->encodingRepairedCount,
+                ])
+                : __(':count posts queued for import. Processing in the background…', ['count' => count($posts)]);
+
+            if ($stages !== []) {
+                $message .= ' '.implode(' + ', $stages).' '.__('will be imported automatically next.');
+            } elseif ($thumbnails === []) {
+                $message .= ' '.__('No wp_postmeta in this dump: featured images were skipped.');
+            }
+
+            $this->dispatch('toast', message: $message, type: 'success');
         } catch (\Throwable $e) {
             $this->fatalError = $e->getMessage();
         } finally {
             $this->isProcessing = false;
         }
+    }
+
+    /**
+     * Why the selected chain options cannot run, or null when they can.
+     *
+     * The featured-image stage downloads from the legacy site, and it only ever
+     * downloads from the host of the WordPress base URL (a dump is untrusted
+     * input, so its `guid` values are not followed blindly — see
+     * {@see MediaMigrationService::isAllowedSource()}).
+     * Without a base URL every single thumbnail would be rejected, so we stop
+     * the upload instead of importing 198 posts without images.
+     */
+    public function chainOptionError(): ?string
+    {
+        if ($this->chainThumbnails && blank($this->wpBase)) {
+            return __('Featured image import needs the WordPress Base URL: thumbnails are only downloaded from that host. Fill it in, or uncheck "Import featured images (thumbnails) automatically".');
+        }
+
+        return null;
     }
 
     /**

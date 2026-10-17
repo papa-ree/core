@@ -39,6 +39,7 @@
             return (this.state && this.state.done) ? 100 : 0;
         },
         get media() { return (this.state && this.state.media) ? this.state.media : null; },
+        get thumbnail() { return (this.state && this.state.thumbnail) ? this.state.thumbnail : null; },
         get done() { return !!(this.state && this.state.done); },
         get errors() { return (this.state && this.state.errors) ? this.state.errors : []; },
         get security() { return (this.state && this.state.security) ? this.state.security : []; },
@@ -96,6 +97,14 @@
         <div class="mt-4 flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
             <x-lucide-image class="w-4 h-4 text-purple-500" />
             <span x-text="'{{ __('Media stage') }}: ' + (media.total - media.pending) + ' / ' + media.total + ' {{ __('posts') }}'"></span>
+        </div>
+    </template>
+
+    {{-- Thumbnail stage (chained after the media stage) --}}
+    <template x-if="thumbnail">
+        <div class="mt-2 flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+            <x-lucide-images class="w-4 h-4 text-sky-500" />
+            <span x-text="'{{ __('Featured images (thumbnails)') }}: ' + (thumbnail.total - thumbnail.pending) + ' / ' + thumbnail.total + ' {{ __('posts') }}'"></span>
         </div>
     </template>
 
