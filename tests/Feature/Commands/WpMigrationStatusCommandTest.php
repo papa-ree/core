@@ -3,6 +3,8 @@
 use Bale\Core\Models\WpMigrationItem;
 use Bale\Core\Models\WpMigrationRun;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
 /*
@@ -129,4 +131,88 @@ it('scopes the run list to a single bale when asked', function () {
     expect($exitCode)->toBe(0)
         ->and($output)->toContain(substr((string) $second->id, 0, 8))
         ->and($output)->not->toContain(substr((string) $first->id, 0, 8));
+});
+
+it('asks the real queue backend instead of the jobs table', function () {
+    // On Redis the `jobs` table is always empty, so reading it printed "0"
+    // while 396 jobs were waiting. The diagnostics must follow queue.default.
+    Queue::fake();
+    config(['queue.default' => 'redis']);
+
+    [$exitCode, $output] = wp_status_output();
+
+    expect($exitCode)->toBe(0)
+        ->and($output)->toContain('driver: redis')
+        ->and($output)->toContain('queued [wp-import]')
+        ->and($output)->not->toContain('connection: mysql');
+});
+
+it('explains that an unfinished batch with an empty queue means lost jobs', function () {
+    Queue::fake();
+    config(['queue.default' => 'redis']);
+
+    $batchId = (string) Str::uuid();
+
+    DB::table('job_batches')->insert([
+        'id' => $batchId,
+        'name' => 'wp-import:lost',
+        'total_jobs' => 198,
+        'pending_jobs' => 198,
+        'failed_jobs' => 0,
+        'failed_job_ids' => json_encode([]),
+        'options' => json_encode([]),
+        'cancelled_at' => null,
+        'created_at' => now()->timestamp,
+        'finished_at' => null,
+    ]);
+
+    wp_status_make_run(['batch_id' => $batchId]);
+
+    [$exitCode, $output] = wp_status_output();
+
+    expect($exitCode)->toBe(0)
+        ->and($output)->toContain('nothing queued')
+        ->and($output)->toContain('core:wp-migration-redispatch')
+        ->and($output)->toContain('0/198');
+});
+
+it('warns when retry_after is shorter than the longest migration job', function () {
+    // Redis re-queues a job that is still running after retry_after seconds.
+    // The media job has a 900s timeout, so the default 90s executes it twice.
+    Queue::fake();
+    config([
+        'queue.default' => 'redis',
+        'queue.connections.redis.retry_after' => 90,
+    ]);
+
+    [$exitCode, $output] = wp_status_output();
+
+    expect($exitCode)->toBe(0)
+        ->and($output)->toContain('retry_after (90s)')
+        ->and($output)->toContain('900')
+        ->and($output)->toContain('REDIS_QUEUE_RETRY_AFTER=960');
+});
+
+it('stays quiet when retry_after already covers the job timeout', function () {
+    Queue::fake();
+    config([
+        'queue.default' => 'redis',
+        'queue.connections.redis.retry_after' => 960,
+    ]);
+
+    [, $output] = wp_status_output();
+
+    expect($output)->not->toContain('retry_after');
+});
+
+it('names the env variable that belongs to the active queue driver', function () {
+    Queue::fake();
+    config([
+        'queue.default' => 'database',
+        'queue.connections.database.retry_after' => 90,
+    ]);
+
+    [, $output] = wp_status_output();
+
+    expect($output)->toContain('DB_QUEUE_RETRY_AFTER=960');
 });

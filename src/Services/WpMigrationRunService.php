@@ -115,7 +115,12 @@ class WpMigrationRunService
 
     public function dispatchSqlBatch(WpMigrationRun $run): void
     {
-        $itemIds = WpMigrationItem::where('run_id', $run->id)->pluck('id');
+        // Only pending items are dispatched: a re-dispatch (see
+        // `core:wp-migration-redispatch`) must not queue 198 no-op jobs for
+        // posts that were already imported.
+        $itemIds = WpMigrationItem::where('run_id', $run->id)
+            ->where('status', WpMigrationItem::STATUS_PENDING)
+            ->pluck('id');
 
         if ($itemIds->isEmpty()) {
             $this->finish($run);
@@ -216,7 +221,9 @@ class WpMigrationRunService
 
     public function dispatchMediaBatch(WpMigrationRun $run): void
     {
-        $itemIds = WpMigrationItem::where('run_id', $run->id)->pluck('id');
+        $itemIds = WpMigrationItem::where('run_id', $run->id)
+            ->where('status', WpMigrationItem::STATUS_PENDING)
+            ->pluck('id');
 
         if ($itemIds->isEmpty()) {
             $this->finish($run);

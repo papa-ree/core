@@ -9,6 +9,7 @@ use Bale\Core\Commands\MigrateWpMediaCommand;
 use Bale\Core\Commands\MigrateWpSqlCommand;
 use Bale\Core\Commands\PublishErrorCommand;
 use Bale\Core\Commands\PublishMigrationCommand;
+use Bale\Core\Commands\WpMigrationRedispatchCommand;
 use Bale\Core\Commands\WpMigrationStatusCommand;
 use Bale\Core\Middleware\CheckKeycloakSession;
 use Bale\Core\Middleware\CheckLoginRateLimit;
@@ -62,6 +63,7 @@ class CoreServiceProvider extends ServiceProvider
             'command.core:migrate-wp-media' => MigrateWpMediaCommand::class,
             'command.core:migrate-wp-sql' => MigrateWpSqlCommand::class,
             'command.core:wp-migration-status' => WpMigrationStatusCommand::class,
+            'command.core:wp-migration-redispatch' => WpMigrationRedispatchCommand::class,
         ];
 
         foreach ($commands as $key => $class) {

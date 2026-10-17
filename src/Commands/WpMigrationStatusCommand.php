@@ -2,11 +2,14 @@
 
 namespace Bale\Core\Commands;
 
+use Bale\Core\Jobs\Wp\ImportWpPostJob;
+use Bale\Core\Jobs\Wp\MigrateWpMediaPostJob;
 use Bale\Core\Models\WpMigrationItem;
 use Bale\Core\Models\WpMigrationRun;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -220,44 +223,41 @@ class WpMigrationStatusCommand extends Command
 
     /**
      * Explain the queue side: what is still waiting, what already ran, what blew up.
+     *
+     * The queue backend is whatever `queue.default` says — reading the `jobs`
+     * table is only meaningful for `database`. On Redis (the usual production
+     * setup) that table is always empty, so an operator debugging "nothing ran"
+     * would be shown `0` while 396 jobs were actually waiting. Ask the queue
+     * connection itself instead.
      */
     protected function renderQueueDiagnostics(): void
     {
+        $driver = $this->queueDriver();
         $sqlQueue = (string) config('core.wp_migration.sql_queue', 'wp-import');
         $mediaQueue = (string) config('core.wp_migration.media_queue', 'wp-media');
 
-        $rows = [
-            [
-                "jobs [{$sqlQueue}]",
-                $this->tableCount('jobs', fn ($q) => $q->where('queue', $sqlQueue)),
-                'waiting for a worker — processed rows are deleted',
-            ],
-            [
-                "jobs [{$mediaQueue}]",
-                $this->tableCount('jobs', fn ($q) => $q->where('queue', $mediaQueue)),
-                'waiting for a worker — processed rows are deleted',
-            ],
-            [
-                'job_batches (running)',
-                $this->tableCount('job_batches', fn ($q) => $q->whereNull('finished_at')),
-                'batches still in flight',
-            ],
-            [
-                'failed_jobs [wp-*]',
-                $this->tableCount('failed_jobs', fn ($q) => $q->whereIn('queue', [$sqlQueue, $mediaQueue])),
-                'exceptions raised by a job',
-            ],
-        ];
+        $sqlWaiting = $this->queueSize($sqlQueue);
+        $mediaWaiting = $this->queueSize($mediaQueue);
+        $unfinishedBatches = $this->tableCount('job_batches', fn ($q) => $q->whereNull('finished_at'));
+        $failedCount = $this->failedJobCount($sqlQueue, $mediaQueue);
 
-        $this->info('Queue diagnostics (connection: '.config('database.default').')');
-        $this->table(['Check', 'Count', 'Meaning'], $rows);
+        $this->info(sprintf(
+            'Queue diagnostics (driver: %s · queues: %s, %s)',
+            $driver,
+            $sqlQueue,
+            $mediaQueue
+        ));
 
-        $waiting = $this->tableCount('jobs', fn ($q) => $q->whereIn('queue', [$sqlQueue, $mediaQueue]));
+        $this->table(['Check', 'Count', 'Meaning'], [
+            ["queued [{$sqlQueue}]", $sqlWaiting, 'waiting for a worker'],
+            ["queued [{$mediaQueue}]", $mediaWaiting, 'waiting for a worker'],
+            ['job_batches (unfinished)', $unfinishedBatches, 'batches still in flight'],
+            ['failed_jobs [wp-*]', $failedCount, 'exceptions raised by a job'],
+        ]);
+
+        $this->renderQueueAdvice($sqlQueue, $mediaQueue, $sqlWaiting, $mediaWaiting, $unfinishedBatches);
+
         $failed = $this->failedJobs($sqlQueue, $mediaQueue);
-
-        if (is_int($waiting) && $waiting > 0) {
-            $this->comment("A queue worker is needed: php artisan queue:work --queue={$sqlQueue},{$mediaQueue}");
-        }
 
         if ($failed->isNotEmpty()) {
             $this->newLine();
@@ -271,6 +271,78 @@ class WpMigrationStatusCommand extends Command
         }
 
         $this->newLine();
+    }
+
+    /**
+     * Translate the counts into the one action the operator has to take.
+     */
+    protected function renderQueueAdvice(
+        string $sqlQueue,
+        string $mediaQueue,
+        int|string $sqlWaiting,
+        int|string $mediaWaiting,
+        int|string $unfinishedBatches,
+    ): void {
+        $waiting = $this->sumQueueSizes($sqlWaiting, $mediaWaiting);
+
+        if (is_int($waiting) && $waiting > 0) {
+            $this->newLine();
+            $this->comment('Jobs are waiting. A worker listening to the migration queues is required:');
+            $this->line('  '.$this->workerCommand($sqlQueue, $mediaQueue));
+            $this->line('  `queue:work` without --queue only reads `default`, which is how batches sit');
+            $this->line('  at 0/198 for hours without a single error.');
+        }
+
+        if ($waiting === 0 && is_int($unfinishedBatches) && $unfinishedBatches > 0) {
+            $this->newLine();
+            $this->warn('There is an unfinished batch but nothing queued: those jobs are gone.');
+            $this->line('  Usually a cleared queue (`queue:clear`, `queue:flush`, `FLUSHDB`) or a batch');
+            $this->line('  whose jobs were never pushed. Re-arm the run with:');
+            $this->line('  php artisan core:wp-migration-redispatch <run-uuid>');
+        }
+
+        if ($warning = $this->retryAfterWarning()) {
+            $this->newLine();
+            $this->error($warning);
+        }
+    }
+
+    /**
+     * Redis puts a job that is still running after `retry_after` seconds back on
+     * the queue, so the media job (900s timeout) would be executed twice on the
+     * default 90s — silently duplicating downloads and CDN uploads.
+     */
+    protected function retryAfterWarning(): ?string
+    {
+        $driver = $this->queueDriver();
+        $retryAfter = config("queue.connections.{$driver}.retry_after");
+
+        if ($retryAfter === null) {
+            return null;
+        }
+
+        $longest = max(
+            $this->jobTimeout(ImportWpPostJob::class),
+            $this->jobTimeout(MigrateWpMediaPostJob::class),
+        );
+
+        if ($longest <= 0 || (int) $retryAfter >= $longest) {
+            return null;
+        }
+
+        $env = match ($driver) {
+            'redis' => 'REDIS_QUEUE_RETRY_AFTER',
+            'database' => 'DB_QUEUE_RETRY_AFTER',
+            default => "queue.connections.{$driver}.retry_after",
+        };
+
+        return sprintf(
+            'retry_after (%ds) is shorter than the longest migration job (%ds): a job still running is re-queued and executed twice — set %s=%d.',
+            (int) $retryAfter,
+            $longest,
+            $env,
+            $longest + 60
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -355,10 +427,88 @@ class WpMigrationStatusCommand extends Command
         return (int) $query->count();
     }
 
+    /**
+     * Number of jobs waiting on the given queue, asked from the real backend.
+     *
+     * `size()` is part of the queue contract, so this works for redis, database,
+     * sqs, … A backend that is unreachable reports `n/a` instead of a misleading
+     * zero.
+     */
+    protected function queueSize(string $queue): int|string
+    {
+        if ($this->queueDriver() === 'null') {
+            return 0;
+        }
+
+        try {
+            return (int) Queue::connection($this->queueDriver())->size($queue);
+        } catch (\Throwable) {
+            return 'n/a';
+        }
+    }
+
+    protected function sumQueueSizes(int|string ...$sizes): int|string|null
+    {
+        $total = 0;
+
+        foreach ($sizes as $size) {
+            if (! is_int($size)) {
+                return null;
+            }
+
+            $total += $size;
+        }
+
+        return $total;
+    }
+
+    protected function queueDriver(): string
+    {
+        return (string) config('queue.default');
+    }
+
+    protected function workerCommand(string $sqlQueue, string $mediaQueue): string
+    {
+        if (in_array($this->queueDriver(), ['sync', 'null'], true)) {
+            return 'php artisan queue:work --queue='.$sqlQueue.','.$mediaQueue.' (driver is '.$this->queueDriver().')';
+        }
+
+        return sprintf(
+            'php artisan queue:work %s --queue=%s,%s',
+            $this->queueDriver(),
+            $sqlQueue,
+            $mediaQueue
+        );
+    }
+
+    /**
+     * Default `$timeout` of a job class without instantiating it (the jobs need
+     * constructor arguments).
+     */
+    protected function jobTimeout(string $jobClass): int
+    {
+        return (int) (get_class_vars($jobClass)['timeout'] ?? 0);
+    }
+
+    protected function failedJobCount(string $sqlQueue, string $mediaQueue): int|string
+    {
+        if (! $this->failedJobsUseDatabase()) {
+            return 'n/a';
+        }
+
+        if (! Schema::hasTable('failed_jobs')) {
+            return 'n/a';
+        }
+
+        return (int) DB::table('failed_jobs')
+            ->whereIn('queue', [$sqlQueue, $mediaQueue])
+            ->count();
+    }
+
     /** @return Collection<int, object> */
     protected function failedJobs(string $sqlQueue, string $mediaQueue): Collection
     {
-        if (! Schema::hasTable('failed_jobs')) {
+        if (! $this->failedJobsUseDatabase() || ! Schema::hasTable('failed_jobs')) {
             return collect();
         }
 
@@ -367,6 +517,15 @@ class WpMigrationStatusCommand extends Command
             ->orderByDesc('id')
             ->limit(5)
             ->get();
+    }
+
+    /**
+     * Failed jobs live in `failed_jobs` only when the failed provider stores
+     * them in the database (the default, also used for redis queues).
+     */
+    protected function failedJobsUseDatabase(): bool
+    {
+        return str_starts_with((string) config('queue.failed.driver', 'database-uuids'), 'database');
     }
 
     protected function formatTime(mixed $value): string
