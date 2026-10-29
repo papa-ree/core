@@ -13,9 +13,15 @@
 |   @prop bool    $disabled    Disable the input
 |   @prop bool    $live        Push changes to the server immediately
 |   @prop string  $minDate     Minimum selectable date (flatpickr format)
+|   @prop string  $maxDate     Maximum selectable date (flatpickr format)
 |
 | The owning Livewire component must expose `$model` as a public property, or
 | render inside a Livewire component so `$wire` magic is available.
+|
+| 🔴 Factory Alpine-nya (`baleDatePicker`) hidup di `resources/js/app.js`,
+| bukan di file ini. `<script>` yang dikirim bersama HTML Livewire tidak
+| dijalankan saat komponen dirender ulang, jadi picker yang baru muncul akan
+| gagal dengan "baleDatePicker is not defined".
 --}}
 
 @props([
@@ -27,6 +33,7 @@
     'disabled' => false,
     'live' => false,
     'minDate' => null,
+    'maxDate' => null,
 ])
 
 @php
@@ -43,6 +50,7 @@
         'displayFormat' => $isDateTime ? 'd/m/y H:i' : 'd/m/y',
         'enableTime' => $isDateTime,
         'minDate' => $minDate,
+        'maxDate' => $maxDate,
     ];
 @endphp
 
@@ -79,46 +87,3 @@
     </div>
 </div>
 
-@once
-    <script>
-        function baleDatePicker(config) {
-            return {
-                instance: null,
-
-                init() {
-                    const initial = config.model ? this.$wire.get(config.model) : this.$refs.input.value;
-
-                    this.instance = window.flatpickr(this.$refs.input, {
-                        enableTime: !!config.enableTime,
-                        time_24hr: true,
-                        dateFormat: config.format,
-                        altInput: true,
-                        altFormat: config.displayFormat,
-                        allowInput: false,
-                        minDate: config.minDate || null,
-                        defaultDate: initial || null,
-                        onChange: (dates, str) => {
-                            if (!config.model) return;
-
-                            if (config.live) {
-                                this.$wire.set(config.model, str);
-                            } else {
-                                this.$wire.set(config.model, str, false);
-                            }
-                        },
-                    });
-
-                    if (config.model) {
-                        this.$wire.$watch(config.model, (value) => {
-                            const next = value || null;
-
-                            if ((value || '') === (this.$refs.input.value || '')) return;
-
-                            this.instance.setDate(next, false);
-                        });
-                    }
-                },
-            };
-        }
-    </script>
-@endonce

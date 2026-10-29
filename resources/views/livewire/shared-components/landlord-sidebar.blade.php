@@ -50,6 +50,22 @@
             {{-- ========== Divider ========== --}}
             <div class="mx-3 mb-3 h-px bg-slate-700/60"></div>
 
+            {{-- ========== Switch layout (didaftarkan package, mis. rakaca) ========== --}}
+            @php $switcher = app(\Bale\Core\Services\MenuRegistry::class)->getSwitcher(); @endphp
+            @if ($switcher && auth()->user()?->can($switcher['permission'] ?? 'dashboard'))
+                <div class="px-3 pb-2">
+                    <a href="{{ route($switcher['route']) }}" wire:navigate.hover
+                        class="group flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium
+                               text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all duration-150">
+                        <span class="shrink-0 text-slate-500 group-hover:text-rose-400">
+                            <x-dynamic-component :component="'lucide-'.($switcher['icon'] ?? 'user')" class="w-5 h-5" />
+                        </span>
+                        <span class="flex-1 text-left tracking-wide">{{ __($switcher['label']) }}</span>
+                        <x-lucide-arrow-up-right class="w-3.5 h-3.5 text-slate-600 group-hover:text-rose-400" />
+                    </a>
+                </div>
+            @endif
+
             {{-- ========== Group Buttons ========== --}}
             <nav class="flex-1 flex flex-col gap-0.5 px-3 overflow-y-auto
                         scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">

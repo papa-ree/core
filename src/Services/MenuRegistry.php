@@ -45,6 +45,14 @@ class MenuRegistry
     protected array $groups = [];
 
     /**
+     * Tombol switch layout di sidebar landlord, didaftarkan package yang
+     * punya panel kedua (mis. rakaca: landlord ↔ guest).
+     *
+     * @var array{label: string, icon?: string, route: string, permission?: string}|null
+     */
+    protected ?array $switcher = null;
+
+    /**
      * Membaca dan mendaftarkan menu dari file `src/menu.php` milik provider yang diberikan.
      * Lokasi menu.php dideteksi secara otomatis via refleksi.
      */
@@ -56,31 +64,42 @@ class MenuRegistry
 
         try {
             $reflection = new \ReflectionClass($providerClass);
-            $menuPath = dirname($reflection->getFileName()).'/menu.php';
+            $basePath = dirname($reflection->getFileName());
 
-            if (! file_exists($menuPath)) {
-                return;
-            }
-
-            $config = include $menuPath;
-
-            if (! is_array($config)) {
-                return;
-            }
-
-            // Backward compat: format lama (flat array tanpa key 'type' dan 'groups')
-            // dilewati agar tidak error — format lama ditangani CmsSidebar secara terpisah.
-            if (! isset($config['type']) || ! isset($config['groups'])) {
-                return;
-            }
-
-            foreach ($config['groups'] as $group) {
-                $this->groups[] = array_merge($group, [
-                    '_type' => $config['type'],
-                ]);
-            }
+            // `menu.php`      -> landlord/tenant
+            // `menu-guest.php`-> panel guest (rakaca), type => 'guest'
+            $this->registerMenuFile($basePath.'/menu.php');
+            $this->registerMenuFile($basePath.'/menu-guest.php');
         } catch (\Throwable $e) {
             // Gagal diam-diam agar tidak memblokir boot aplikasi
+        }
+    }
+
+    /**
+     * Baca satu file menu dan tambahkan grupnya ke registry.
+     */
+    protected function registerMenuFile(string $menuPath): void
+    {
+        if (! file_exists($menuPath)) {
+            return;
+        }
+
+        $config = include $menuPath;
+
+        if (! is_array($config)) {
+            return;
+        }
+
+        // Backward compat: format lama (flat array tanpa key 'type' dan 'groups')
+        // dilewati agar tidak error — format lama ditangani CmsSidebar secara terpisah.
+        if (! isset($config['type']) || ! isset($config['groups'])) {
+            return;
+        }
+
+        foreach ($config['groups'] as $group) {
+            $this->groups[] = array_merge($group, [
+                '_type' => $config['type'],
+            ]);
         }
     }
 
@@ -109,6 +128,24 @@ class MenuRegistry
     public function getGuestGroups(): array
     {
         return $this->resolveGroups('guest');
+    }
+
+    /**
+     * Daftarkan tombol switch layout untuk sidebar landlord.
+     *
+     * @param  array{label: string, icon?: string, route: string, permission?: string}|null  $switcher
+     */
+    public function setSwitcher(?array $switcher): void
+    {
+        $this->switcher = $switcher;
+    }
+
+    /**
+     * @return array{label: string, icon?: string, route: string, permission?: string}|null
+     */
+    public function getSwitcher(): ?array
+    {
+        return $this->switcher;
     }
 
     /**
