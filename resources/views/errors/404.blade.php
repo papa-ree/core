@@ -39,7 +39,7 @@
             <span
                 class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest bg-blue-500/20 text-blue-300 border border-blue-500/30">
                 <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
-                404 — Halaman Tidak Ditemukan
+                404 â€” Halaman Tidak Ditemukan
             </span>
         </x-slot>
 
@@ -55,6 +55,7 @@
         </x-slot>
 
         <x-slot name="actions">
+            @auth
             @php $dashboardUrl = app('router')->has('dashboard') ? route('dashboard') : '/'; @endphp
             <a href="{{ $dashboardUrl }}" wire:navigate
                 class="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-white font-semibold text-sm shadow-xl transition-all duration-300 hover:shadow-purple-500/30 hover:scale-[1.02] active:scale-[0.98]"
@@ -65,6 +66,7 @@
                 </svg>
                 Kembali ke Dashboard
             </a>
+            @endauth
             <a href="javascript:history.back()"
                 class="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-white/80 font-semibold text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                 style="background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);">

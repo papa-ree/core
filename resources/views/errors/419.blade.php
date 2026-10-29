@@ -40,7 +40,7 @@
             <span
                 class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest bg-orange-500/20 text-orange-300 border border-orange-500/30">
                 <span class="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse"></span>
-                419 — Sesi Berakhir
+                419 â€” Sesi Berakhir
             </span>
         </x-slot>
 
@@ -66,6 +66,7 @@
                 </svg>
                 Muat Ulang Halaman
             </button>
+            @auth
             @php $dashboardUrl = app('router')->has('dashboard') ? route('dashboard') : '/'; @endphp
             <a href="{{ $dashboardUrl }}" wire:navigate
                 class="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-white/80 font-semibold text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
@@ -76,6 +77,7 @@
                 </svg>
                 Kembali ke Dashboard
             </a>
+            @endauth
         </x-slot>
     </x-core::error-card>
 

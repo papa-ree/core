@@ -22,7 +22,9 @@ class LandlordSidebar extends Component
      *
      * @return array<int, array{key: string, label: string, icon: string, items: array}>
      */
-    #[Computed(persist: true)]
+    // Tanpa persist: key cache Livewire hanya memakai id komponen (tanpa user),
+    // sehingga menu satu user bisa tampil ke user lain selama TTL.
+    #[Computed]
     public function menuGroups(): array
     {
         return app(MenuRegistry::class)->getLandlordGroups();
