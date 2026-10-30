@@ -45,6 +45,14 @@ class MenuRegistry
     protected array $groups = [];
 
     /**
+     * Cache permission per user untuk request ini. Sengaja bukan `static`
+     * agar tidak terbawa ke user lain pada proses panjang (Octane/queue).
+     *
+     * @var array<string, array<int, string>>
+     */
+    protected array $permsCache = [];
+
+    /**
      * Tombol switch layout di sidebar landlord, didaftarkan package yang
      * punya panel kedua (mis. rakaca: landlord ↔ guest).
      *
@@ -206,18 +214,17 @@ class MenuRegistry
     protected function filterItems(array $items): array
     {
         // Optimasi: eager load permissions sekali per request + cache 5 menit per user per type
-        static $permsCache = [];
         $userId = Auth::id() ?? 'guest';
-        if (! isset($permsCache[$userId])) {
+        if (! isset($this->permsCache[$userId])) {
             $user = Auth::user();
             if ($user) {
                 $user->loadMissing('roles', 'permissions');
-                $permsCache[$userId] = $user->getAllPermissions()->pluck('name')->toArray();
+                $this->permsCache[$userId] = $user->getAllPermissions()->pluck('name')->toArray();
             } else {
-                $permsCache[$userId] = [];
+                $this->permsCache[$userId] = [];
             }
         }
-        $perms = $permsCache[$userId];
+        $perms = $this->permsCache[$userId];
 
         return array_values(array_filter($items, function (array $item) use ($perms): bool {
             if (isset($item['class']) && ! class_exists($item['class'])) {
@@ -239,5 +246,6 @@ class MenuRegistry
     public function flush(): void
     {
         $this->groups = [];
+        $this->permsCache = [];
     }
 }
