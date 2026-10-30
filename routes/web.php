@@ -67,7 +67,7 @@ Route::middleware(['auth', 'web', 'permission:entrance-gate.read'])->group(funct
 });
 
 // WP Tools
-Route::middleware(['auth', 'web'])->group(function () {
+Route::middleware(['auth', 'web', 'permission:wp-tool.read'])->group(function () {
     Route::get('/wp-tools/sql-migrator', SqlMigratorIndex::class)->name('wp-tools.sql-migrator');
     Route::get('/wp-tools/wp-migrator/runs/{run}', [WpMigrationRunStatusController::class, 'show'])
         ->name('wp-tools.migrator.status');
