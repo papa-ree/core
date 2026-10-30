@@ -61,7 +61,7 @@ return [
                     'label' => 'WP Tools',
                     'url' => 'wp-tools/sql-migrator',
                     'icon' => 'database-zap',
-                    'permission' => null,
+                    'permission' => 'wp-tool.read',
                 ],
             ],
         ],
