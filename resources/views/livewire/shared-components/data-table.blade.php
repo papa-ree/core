@@ -35,6 +35,17 @@ new class extends Component {
     public string $deleteEvent        = 'deleteItem';
     public string $rowView            = '';
     public string $cardView           = '';
+    public string $searchPlaceholder  = '';
+
+    /**
+     * Pengganti pencarian bawaan (`LIKE` pada `searchable`).
+     *
+     * Format `Kelas::metode`; metode menerima
+     * `(Builder $builder, string $query, array $searchable)`. Dipakai saat
+     * kolom pencarian bukan teks biasa — mis. NIK yang disimpan terenkripsi
+     * dan dicocokkan lewat hash.
+     */
+    public string $searchUsing        = '';
 
     /**
      * Filter dropdown yang dirender sendiri oleh tabel.
@@ -91,6 +102,8 @@ new class extends Component {
         string $deleteEvent        = 'deleteItem',
         string $cardView           = '',
         array  $filterOptions      = [],
+        string $searchPlaceholder  = '',
+        string $searchUsing        = '',
     ): void {
         $this->model               = $model;
         $this->rowView             = $rowView;
@@ -106,6 +119,8 @@ new class extends Component {
         $this->deleteEvent         = $deleteEvent;
         $this->cardView            = $cardView;
         $this->filterOptions       = $filterOptions;
+        $this->searchPlaceholder   = $searchPlaceholder;
+        $this->searchUsing         = $searchUsing;
     }
 
     public function sort(string $field): void
@@ -220,7 +235,12 @@ new class extends Component {
                 $builder->where($col, $val);
             }
         }
-        if ($this->query && $this->searchable) {
+        if ($this->query && $this->searchUsing) {
+            [$class, $method] = explode('::', $this->searchUsing, 2);
+            if (class_exists($class) && method_exists($class, $method)) {
+                $class::$method($builder, $this->query, $this->searchable);
+            }
+        } elseif ($this->query && $this->searchable) {
             $builder->where(function ($q) {
                 foreach ($this->searchable as $i => $col) {
                     $m = $i === 0 ? 'where' : 'orWhere';
@@ -344,7 +364,7 @@ new class extends Component {
                         <input
                             type="text"
                             wire:model.live.debounce.400ms="query"
-                            placeholder="Search..."
+                            placeholder="{{ $searchPlaceholder ?: 'Search...' }}"
                             class="block w-full py-2 ps-9 {{ $query ? 'pe-8' : 'pe-4' }} text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 focus:outline-none transition-all dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-900/30"
                         />
                     </div>
