@@ -45,7 +45,6 @@
             ],
         ]"
         :searchable="['name', 'email', 'username']"
-        :constraints="['role' => ['!=', 'citizen']]"
         sortField="name"
         sortDirection="asc"
         :perPage="20"

@@ -18,7 +18,7 @@
 | The owning Livewire component must expose `$model` as a public property, or
 | render inside a Livewire component so `$wire` magic is available.
 |
-| 🔴 Factory Alpine-nya (`baleDatePicker`) hidup di `resources/js/app.js`,
+| 🔴 Factory Alpine-nya (`window.baleDatePicker`) hidup di `resources/js/app.js`,
 | bukan di file ini. `<script>` yang dikirim bersama HTML Livewire tidak
 | dijalankan saat komponen dirender ulang, jadi picker yang baru muncul akan
 | gagal dengan "baleDatePicker is not defined".
