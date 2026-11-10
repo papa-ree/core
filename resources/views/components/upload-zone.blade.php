@@ -10,6 +10,8 @@
 |   @prop int    $maxSize   Max file size in KB (default: 512)
 |   @prop string $label     Main label text inside the drop zone
 |   @prop string $hint      Helper text shown below the label
+|   @prop int    $maxFiles  Max number of files (default: null = unlimited)
+|   @prop string $removeMethod  Livewire method called as (index) when a file is removed
 |
 | Usage:
 |   <x-core::upload-zone
@@ -33,6 +35,8 @@
     'label'    => null,
     'hint'     => null,
     'multiple' => false,
+    'maxFiles' => null,
+    'removeMethod' => null,
 ])
 
 @php
@@ -55,6 +59,8 @@
         accept: '{{ $accept }}',
         maxSizeKb: {{ $maxSize }},
         isMultiple: {{ $multiple ? 'true' : 'false' }},
+        maxFiles: {{ $maxFiles ?? 'null' }},
+        removeMethod: '{{ $removeMethod }}',
 
         handleFiles(fileList) {
             if (!fileList || fileList.length === 0) return;
@@ -89,12 +95,12 @@
                 });
 
                 if (!typeOk) {
-                    this.overallError = '{{ __('Some files have invalid types. Accepted:') }} ' + this.accept;
+                    this.overallError = '{{ __('Tipe berkas tidak didukung. Yang diterima:') }} ' + this.accept;
                     return false;
                 }
 
                 if (file.size > this.maxSizeKb * 1024) {
-                    this.overallError = '{{ __('Some files are too large. Max size:') }} ' + this.maxSizeKb + ' KB';
+                    this.overallError = '{{ __('Ukuran berkas terlalu besar. Maksimal:') }} ' + this.maxSizeKb + ' KB';
                     return false;
                 }
 
@@ -103,8 +109,23 @@
 
             if (validFiles.length === 0) return;
 
+            {{-- Batasi jumlah berkas bila maxFiles diisi (null = tanpa batas) --}}
+            let acceptedFiles = validFiles;
+
+            if (this.maxFiles !== null) {
+                const remaining = this.maxFiles - this.files.length;
+
+                if (validFiles.length > remaining) {
+                    this.overallError = '{{ __('Maksimal') }} ' + this.maxFiles + ' {{ __('berkas.') }}';
+                }
+
+                if (remaining <= 0) return;
+
+                acceptedFiles = validFiles.slice(0, remaining);
+            }
+
             {{-- Create local entries for UI --}}
-            validFiles.forEach(file => {
+            acceptedFiles.forEach(file => {
                 const fileEntry = {
                     name: file.name,
                     size: (file.size / 1024).toFixed(1) + ' KB',
@@ -132,7 +153,7 @@
             };
             const errorCallback = () => { 
                 this.uploading = false; 
-                this.overallError = '{{ __('Upload failed. Please try again.') }}'; 
+                this.overallError = '{{ __('Unggahan gagal. Silakan coba lagi.') }}'; 
             };
             const progressCallback = (event) => { 
                 let p = event && event.detail ? event.detail.progress : event;
@@ -145,12 +166,12 @@
                 let currentFileIndex = 0;
                 
                 const uploadNext = () => {
-                    if (currentFileIndex >= validFiles.length) {
+                    if (currentFileIndex >= acceptedFiles.length) {
                         this.uploading = false;
                         return;
                     }
 
-                    const file = validFiles[currentFileIndex];
+                    const file = acceptedFiles[currentFileIndex];
                     const fEntry = this.files.find(f => f.name === file.name && f.size === ((file.size / 1024).toFixed(1) + ' KB'));
 
                     if (fEntry) fEntry.uploading = true;
@@ -163,7 +184,7 @@
                         },
                         () => { 
                             if (fEntry) { fEntry.uploading = false; }
-                            this.overallError = '{{ __('Upload failed. Please try again.') }}'; 
+                            this.overallError = '{{ __('Unggahan gagal. Silakan coba lagi.') }}'; 
                             currentFileIndex++;
                             uploadNext(); 
                         },
@@ -184,8 +205,10 @@
             this.files.splice(index, 1);
             if (this.files.length === 0) {
                 this.clear();
+            } else if (this.removeMethod) {
+                {{-- Hapus entri yang sama di state Livewire agar validasi tidak memakai jumlah lama --}}
+                $wire.call(this.removeMethod, index);
             }
-            {{-- Note: This only clears UI, backend clearing depends on updatedModel logic in parent --}}
         },
 
         clear() {
@@ -322,7 +345,7 @@
         </template>
 
         {{-- Add more files button (only for multiple) --}}
-        <template x-if="isMultiple && files.length > 0">
+        <template x-if="isMultiple && files.length > 0 && (maxFiles === null || files.length < maxFiles)">
             <button
                 type="button"
                 @click="$refs.fileInput.click()"
