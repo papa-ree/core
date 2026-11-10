@@ -3,11 +3,11 @@
 use Illuminate\Support\Facades\Blade;
 
 describe('x-core::confirm-dialog', function () {
-    it('merender trigger, judul, pesan, dan tombol konfirmasi', function () {
+    it('merender popover trigger, judul, pesan, dan tombol konfirmasi', function () {
         $html = Blade::render(<<<'BLADE'
             <x-core::confirm-dialog title="Hapus berkas?" message="Berkas akan dihapus." confirm-label="Ya, Hapus">
                 <x-slot name="trigger">
-                    <button type="button" x-on:click="open = true">Hapus</button>
+                    <button type="button">Hapus</button>
                 </x-slot>
             </x-core::confirm-dialog>
             BLADE);
@@ -17,9 +17,10 @@ describe('x-core::confirm-dialog', function () {
             ->toContain('Berkas akan dihapus.')
             ->toContain('Ya, Hapus')
             ->toContain('Batal')
-            ->toContain('x-on:click="open = true"')
-            ->toContain('role="dialog"')
-            ->toContain('aria-modal="true"');
+            ->toContain('hs-dropdown-toggle')
+            ->toContain('hs-dropdown-menu')
+            ->toContain('hs-dropdown-close')
+            ->not->toContain('role="dialog"');
     });
 
     it('menjalankan method Livewire pada tombol konfirmasi', function () {
