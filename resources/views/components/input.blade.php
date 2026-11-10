@@ -47,30 +47,31 @@
 
     {{-- Variant logic follows --}}
     @if ($usePasswordField)
-        <input
-            :type="hidePassword ? 'password' : 'text'"
-            {{ $disabled ? 'disabled' : '' }}
-            {{ $autofocus ? 'autofocus' : '' }}
-            name="password"
-            id="password"
-            autocomplete="off"
-            {!! $attributes->merge([
-                'class' => 'py-3 px-4 block w-full border-gray-200 rounded-md text-sm
-                            focus:border-purple-300 focus:ring-purple-300
-                            dark:bg-slate-900 dark:border-gray-700
-                            text-gray-800 dark:text-neutral-200',
-            ]) !!}
-        >
+        <div class="relative" x-data="{ hidePassword: true }">
+            <input
+                :type="hidePassword ? 'password' : 'text'"
+                {{ $disabled ? 'disabled' : '' }}
+                {{ $autofocus ? 'autofocus' : '' }}
+                name="password"
+                id="password"
+                autocomplete="off"
+                {!! $attributes->merge([
+                    'class' => 'py-3 px-4 block w-full border-gray-200 rounded-md text-sm
+                                focus:border-purple-300 focus:ring-purple-300
+                                dark:bg-slate-900 dark:border-gray-700
+                                text-gray-800 dark:text-neutral-200',
+                ]) !!}
+            >
 
-        {{-- Toggle visibility button --}}
-        <div
-            class="absolute top-1/2 right-4 -translate-y-1/2 cursor-pointer"
-            @click="hidePassword = !hidePassword"
-        >
-            <i data-lucide="eye"     class="h-6 text-gray-700"        :class="{ 'hidden': !hidePassword }"></i>
-            <i data-lucide="eye-off" class="hidden h-6 text-gray-700" :class="{ 'hidden': hidePassword }"></i>
+            {{-- Toggle visibility button --}}
+            <div
+                class="absolute top-1/2 right-4 -translate-y-1/2 cursor-pointer"
+                @click="hidePassword = !hidePassword"
+            >
+                <i data-lucide="eye"     class="h-6 text-gray-700"        :class="{ 'hidden': !hidePassword }"></i>
+                <i data-lucide="eye-off" class="hidden h-6 text-gray-700" :class="{ 'hidden': hidePassword }"></i>
+            </div>
         </div>
-    </div>
 
 {{-- ============================================================
      Variant: useInlineAddon
