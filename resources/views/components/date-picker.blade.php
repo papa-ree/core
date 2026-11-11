@@ -98,15 +98,20 @@
             </button>
         </span>
 
-        <div
-            x-show="open"
-            x-cloak
-            x-on:click.outside="close()"
-            role="dialog"
-            aria-label="{{ __('Pilih tanggal') }}"
-            class="absolute start-0 z-50 mt-2 w-72 rounded-xl border border-gray-200 bg-white p-3 shadow-xl
-                   dark:border-gray-600 dark:bg-gray-800"
-        >
+        {{-- Teleport ke body: lolos dari `overflow-hidden` kartu induk dan stacking context konten.
+             `z-30` sengaja di bawah topbar (48) dan sidebar (50) agar popup lewat di belakang keduanya. --}}
+        <template x-teleport="body">
+            <div
+                x-show="open"
+                x-cloak
+                x-ref="popup"
+                x-on:click.outside="close()"
+                role="dialog"
+                aria-label="{{ __('Pilih tanggal') }}"
+                :style="{ top: coords.top + 'px', left: coords.left + 'px' }"
+                class="fixed z-30 w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-gray-200 bg-white p-3 shadow-xl
+                       dark:border-gray-600 dark:bg-gray-800"
+            >
             {{-- Navigasi bulan --}}
             <div class="flex items-center justify-between gap-2">
                 <button
@@ -207,5 +212,6 @@
                 @endif
             </div>
         </div>
+        </template>
     </div>
 </div>

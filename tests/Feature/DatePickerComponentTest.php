@@ -10,6 +10,8 @@ describe('x-core::date-picker', function () {
             ->toContain('baleDatePicker')
             ->toContain('readonly')
             ->toContain('role="dialog"')
+            ->toContain('x-teleport="body"')
+            ->toContain('fixed z-30')
             ->toContain('name="dari"')
             ->toContain('Hari ini')
             ->not->toContain('flatpickr');
