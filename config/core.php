@@ -83,6 +83,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Blind Index Key
+    |--------------------------------------------------------------------------
+    |
+    | Kunci HMAC-SHA256 untuk `user_profiles.phone_index` — nomor HP terenkripsi
+    | tapi tetap bisa dicari. WAJIB berbeda dari APP_KEY dan tidak ada fallback:
+    | kunci yang sama untuk enkripsi dan index membuat dump tabel cukup untuk
+    | mendekripsi kolomnya.
+    |
+    */
+    'index_key' => env('CORE_INDEX_KEY'),
+
+    /*
+    |--------------------------------------------------------------------------
     | WordPress Migration (queue) Configuration
     |--------------------------------------------------------------------------
     |
