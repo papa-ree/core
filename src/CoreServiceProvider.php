@@ -18,7 +18,9 @@ use Bale\Core\Middleware\CheckLoginRateLimit;
 use Bale\Core\Middleware\RestrictEntranceGate;
 use Bale\Core\Middleware\SetLocale;
 use Bale\Core\Middleware\VerifyCaptcha;
+use Bale\Core\Models\UserProfile;
 use Bale\Core\Services\MenuRegistry;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schedule;
@@ -90,6 +92,10 @@ class CoreServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Relasi profil disediakan package agar model User milik app host tidak
+        // perlu diubah manual (deploy package saja sudah cukup).
+        Model::resolveRelationUsing('profile', fn (Model $model) => $model->hasOne(UserProfile::class, 'user_uuid', 'uuid'));
+
         app('router')->aliasMiddleware('recaptcha', VerifyCaptcha::class);
         app('router')->aliasMiddleware('role', RoleMiddleware::class);
         app('router')->aliasMiddleware('permission', PermissionMiddleware::class);

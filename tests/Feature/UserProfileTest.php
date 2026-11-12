@@ -39,3 +39,11 @@ it('mempertahankan phone lama saat profil disimpan tanpa nomor', function () {
     expect($profile->fresh()->phone)->toBe('628123456789')
         ->and($profile->fresh()->asal_instansi)->toBe('Dinas Pendidikan');
 });
+
+it('menyediakan relasi profile dari package tanpa method di model User', function () {
+    $user = User::factory()->create();
+    $profile = UserProfile::create(['user_uuid' => $user->uuid, 'phone' => '08123456789']);
+
+    expect($user->profile->is($profile))->toBeTrue()
+        ->and($user->profile()->first()->is($profile))->toBeTrue();
+});
