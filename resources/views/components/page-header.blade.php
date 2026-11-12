@@ -2,10 +2,13 @@
 
 @if($gradient)
     {{-- Gradient Header Style --}}
-    <div class="relative overflow-hidden p-8 mb-8 text-white rounded-2xl shadow-xl"
+    <div class="relative p-8 mb-8 text-white rounded-2xl shadow-xl"
         style="background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);">
-        <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
-        <div class="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full -ml-24 -mb-24"></div>
+        {{-- Blob diklip sendiri supaya dropdown di slot action tidak terpotong. --}}
+        <div class="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
+            <div class="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full -ml-24 -mb-24"></div>
+        </div>
 
         <div class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between">
             <div class="mb-4 md:mb-0">
