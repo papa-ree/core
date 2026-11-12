@@ -19,7 +19,7 @@ beforeEach(function () {
 it('menampilkan halaman login pada url entrance.gate', function () {
     $this->get('/entrance.gate')
         ->assertStatus(200)
-        ->assertSee('Masuk ke Akun Anda')
+        ->assertSee('Selamat Datang')
         ->assertSee('username')
         ->assertSee('password');
 });

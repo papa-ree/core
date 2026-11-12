@@ -1,5 +1,6 @@
 @extends('core::layouts.login')
 
+@section('content')
 <style>
     /* ── Hide reCAPTCHA badge ── */
     .grecaptcha-badge {
@@ -381,3 +382,4 @@ Left: branding panel | Right: login form
         observer.observe( document.documentElement, { attributes: true, attributeFilter: [ 'class' ] } );
     } )();
 </script>
+@endsection

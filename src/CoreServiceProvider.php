@@ -4,6 +4,7 @@ namespace Bale\Core;
 
 use Bale\Core\Commands\AllowEntranceGateIpCommand;
 use Bale\Core\Commands\CleanActivityLogCommand;
+use Bale\Core\Commands\CoreProfileCheckCommand;
 use Bale\Core\Commands\InstallCommand;
 use Bale\Core\Commands\MigrateWpMediaCommand;
 use Bale\Core\Commands\MigrateWpSqlCommand;
@@ -13,7 +14,6 @@ use Bale\Core\Commands\PublishMigrationCommand;
 use Bale\Core\Commands\SyncPermissionsCommand;
 use Bale\Core\Commands\WpMigrationRedispatchCommand;
 use Bale\Core\Commands\WpMigrationStatusCommand;
-use Bale\Core\Middleware\CheckKeycloakSession;
 use Bale\Core\Middleware\CheckLoginRateLimit;
 use Bale\Core\Middleware\RestrictEntranceGate;
 use Bale\Core\Middleware\SetLocale;
@@ -63,6 +63,7 @@ class CoreServiceProvider extends ServiceProvider
             'command.core:publish-error' => PublishErrorCommand::class,
             'command.core:clean-activity-log' => CleanActivityLogCommand::class,
             'command.core:entrance-gate:allow' => AllowEntranceGateIpCommand::class,
+            'command.core:profile-check' => CoreProfileCheckCommand::class,
             'command.core:migrate-wp-media' => MigrateWpMediaCommand::class,
             'command.core:migrate-wp-sql' => MigrateWpSqlCommand::class,
             'command.core:migrate-wp-thumbnails' => MigrateWpThumbnailsCommand::class,
@@ -93,13 +94,11 @@ class CoreServiceProvider extends ServiceProvider
         app('router')->aliasMiddleware('role', RoleMiddleware::class);
         app('router')->aliasMiddleware('permission', PermissionMiddleware::class);
         app('router')->aliasMiddleware('role_or_permission', RoleOrPermissionMiddleware::class);
-        app('router')->aliasMiddleware('check_keycloak_session', CheckKeycloakSession::class);
         app('router')->aliasMiddleware('check_login_rate_limit', CheckLoginRateLimit::class);
         app('router')->aliasMiddleware('entrance_gate', RestrictEntranceGate::class);
 
         // Register custom localization middleware to the web group
         app('router')->pushMiddlewareToGroup('web', SetLocale::class);
-        app('router')->pushMiddlewareToGroup('web', CheckKeycloakSession::class);
         // app('router')->aliasMiddleware('abilities', CheckAbilities::class);
         // app('router')->aliasMiddleware('ability', CheckForAnyAbility::class);
         // 'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

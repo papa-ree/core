@@ -2,56 +2,40 @@
 
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Laravel\Fortify\Http\Controllers\AuthenticatedSessionController;
 use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\InvalidStateException;
 
 Route::group(['middleware' => ['web']], function () {
 
-    // Login Route ============================================================================
+    // Logout lokal saja: sesi Keycloak dibiarkan, tidak ada sinkronisasi.
     Route::post('/logout', function () {
-        $token = session()->get('keycloak_id_token');
-
-        // Logout of your app.
         Auth::logout();
-        Session::flush(); // Clear the session data
-        Session::regenerate(); // Regenerate the session ID to prevent session fixation attacks
+        Session::flush();
+        Session::regenerate();
 
-        // The URL the user is redirected to after logout.
-        $redirectUri = Config::get('app.url');
-        $url = Socialite::driver('keycloak')->getLogoutUrl();
-
-        $params = array_filter([
-            'id_token_hint' => $token,
-            'post_logout_redirect_uri' => $redirectUri,
-            'client_id' => config('services.keycloak.client_id'),
-        ]);
-
-        $url .= (str_contains($url, '?') ? '&' : '?') . http_build_query($params);
-
-        return redirect($url);
+        return redirect('/');
     })->name('logout');
 
+    // Login utama = SSO Keycloak. Halaman error hanya muncul saat callback gagal.
     Route::get('/login', function () {
         if (Auth::check()) {
             return redirect('/');
         }
 
-        // Jika SSO sync dimatikan, arahkan ke form login biasa, bukan silent SSO
-        if (!config('core.sso_session_sync', true)) {
-            return redirect()->route('login');
+        if (session()->has('sso_error')) {
+            return view('core::auth.sso-error');
         }
 
-        // Jika belum login di Laravel, redirect ke login.silent (biar Keycloak yang tentukan)
-        return redirect()->route('login.silent');
-    });
-
-    Route::get('/login/silent', function () {
         return Socialite::driver('keycloak')->redirect();
-    })->name('login.silent');
+    })->name('login');
+
+    // Menonaktifkan sisa route POST /login milik Fortify.
+    Route::post('/login', fn () => redirect()->route('login'));
 
     Route::get('/force-login', function () {
         return Socialite::driver('keycloak')
@@ -59,22 +43,10 @@ Route::group(['middleware' => ['web']], function () {
             ->redirect();
     })->name('force.login');
 
-    Route::get('/login/sso-check', function () {
-        // Tandai bahwa kita sedang mencoba SSO check untuk mencegah loop di middleware
-        session(['sso_checking' => true]);
-
-        return Socialite::driver('keycloak')
-            ->with(['prompt' => 'none'])
-            ->redirect();
-    })->name('login.sso-check');
-
     Route::get('/login/keycloak/callback', function () {
-        $isSsoCheck = session()->pull('sso_checking', false);
-
         try {
             $user = Socialite::driver('keycloak')->user();
 
-            // Buat login ke aplikasi Laravel, bisa pakai email / ID dari Keycloak
             // Menggunakan 'username' karena 'nip' tidak ada di database
             $authUser = User::firstOrCreate([
                 'username' => $user->getNickname(),
@@ -86,72 +58,61 @@ Route::group(['middleware' => ['web']], function () {
             ]);
 
             // jika user baru maka set role sebagai guest
-            if (!$authUser->getRoleNames()->first()) {
+            if (! $authUser->getRoleNames()->first()) {
                 $authUser->syncRoles('guest');
             }
 
-            // Nomor HP dari Keycloak; kalau mapper tidak mengirim, nomor lama
-            // dipertahankan (jangan sampai terhapus karena gangguan Keycloak).
-            $profile = $authUser->profile()->firstOrNew();
-            if (($phone = $user->user['phone'] ?? null) !== null) {
-                $profile->phone = $phone;
+            // Nomor HP dari Keycloak. Gagal simpan profil tidak boleh menggagalkan login.
+            try {
+                $profile = $authUser->profile()->firstOrNew();
+                if (($phone = $user->user['phone'] ?? null) !== null) {
+                    $profile->phone = $phone;
+                }
+                $profile->save();
+            } catch (Throwable $e) {
+                Log::error('SSO profile_sync gagal: '.$e->getMessage());
             }
-            $profile->save();
 
             Auth::login($authUser, true);
 
             $tokenResponse = $user->accessTokenResponseBody;
 
             session([
-                'keycloak_id_token' => $tokenResponse['id_token'],
-                'keycloak_access_token' => $tokenResponse['access_token'],
+                'keycloak_id_token' => $tokenResponse['id_token'] ?? null,
+                'keycloak_access_token' => $tokenResponse['access_token'] ?? null,
                 'keycloak_refresh_token' => $tokenResponse['refresh_token'] ?? null,
                 'keycloak_token_expires_at' => now()->addSeconds($tokenResponse['expires_in'] ?? 300)->timestamp,
-                'sso_checked' => true,
             ]);
 
             $redirectTo = session()->pull('sso_redirect_back', route('dashboard'));
 
             return redirect()->to($redirectTo);
-        } catch (Exception $e) {
-            // Jika ini adalah silent check (prompt=none) dan gagal, jangan anggap error fatal
-            if ($isSsoCheck) {
-                session(['sso_checked' => true]); // Tandai SSO sudah dicek meskipun gagal
+        } catch (InvalidStateException $e) {
+            // User membatalkan / me-refresh halaman: cukup catat ke file, jangan ke Slack.
+            Log::channel('single')->warning('SSO invalid_state: '.$e->getMessage());
 
-                return redirect()->to('/'); // Kembali ke home sebagai guest
-            }
+            return redirect()->route('login')->with('sso_error', true);
+        } catch (Throwable $e) {
+            Log::error('SSO callback gagal: '.$e->getMessage());
 
-            // Log error untuk debug, bantu identifikasi jika error bukan sekedar silent login gagal
-            // Log::error('Keycloak Login Error: '.$e->getMessage(), [
-            //     'exception' => $e,
-            // ]);
-
-            // Cek apakah ini silent login failure (sering terjadi saat InvalidStateException atau user batal)
-            // Jika sudah ada prompt=login dan masih error, kemungkinan besar error sistem bukan sekedar sesi
-            if (request()->has('prompt') || request()->has('error')) {
-                return redirect()->route('login')->with('error', 'Authentication failed: ' . $e->getMessage());
-            }
-
-            // Silent login gagal (karena user belum login di Keycloak)
-            return redirect()->route('force.login'); // misalnya redirect ke login normal
+            return redirect()->route('login')->with('sso_error', true);
         }
     });
-    // End Login Route =======================================================================================
 
-    // Halaman login (GET) — tidak perlu recaptcha
+    // Halaman login lokal (GET) — hanya bisa diakses dari IP allowlist.
     Route::get('/entrance.gate', function () {
         if (auth()->check()) {
             return redirect('/');
         }
 
         return view('core::auth.login');
-    })->middleware('entrance_gate')->name('login');
+    })->middleware('entrance_gate')->name('entrance.gate');
 
     // Halaman lockout — ditampilkan saat user ter-blokir
     // Hanya bisa diakses jika ada data lockout di session (di-set oleh middleware CheckLoginRateLimit)
     Route::get('/entrance.gate/blocked', function () {
-        if (!session()->has('lockout_seconds')) {
-            return redirect()->route('login');
+        if (! session()->has('lockout_seconds')) {
+            return redirect()->route('entrance.gate');
         }
 
         return view('core::auth.lockout');
@@ -161,9 +122,9 @@ Route::group(['middleware' => ['web']], function () {
     Route::post('/entrance.gate', [AuthenticatedSessionController::class, 'store'])
         ->middleware(array_filter([
             'entrance_gate',
-            'guest:' . config('fortify.guard'),
-            config('fortify.limiters.login') ? 'throttle:' . config('fortify.limiters.login') : null,
+            'guest:'.config('fortify.guard'),
+            config('fortify.limiters.login') ? 'throttle:'.config('fortify.limiters.login') : null,
             'check_login_rate_limit',
             'recaptcha',
-        ]))->name('login.store');
+        ]))->name('entrance.gate.store');
 });

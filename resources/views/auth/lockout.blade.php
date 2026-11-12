@@ -377,7 +377,7 @@
                     <p class="text-white/50 text-sm mb-8">Waktu pemblokiran telah berakhir. Silakan masuk kembali.</p>
 
                     {{-- CTA Button --}}
-                    <a href="{{ route('login') }}"
+                    <a href="{{ route('entrance.gate') }}"
                         class="inline-flex items-center justify-center gap-3 w-full px-6 py-4 rounded-2xl text-white font-semibold text-base shadow-2xl transition-all duration-300 hover:shadow-purple-500/30 hover:scale-[1.02] active:scale-[0.98]"
                         style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
