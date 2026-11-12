@@ -41,9 +41,9 @@ Route::group(['middleware' => ['web']], function () {
         }
 
         // Jika SSO sync dimatikan, arahkan ke form login biasa, bukan silent SSO
-        // if (! config('core.sso_session_sync', true)) {
-        //     return redirect()->route('login');
-        // }
+        if (!config('core.sso_session_sync', true)) {
+            return redirect()->route('login');
+        }
 
         // Jika belum login di Laravel, redirect ke login.silent (biar Keycloak yang tentukan)
         return redirect()->route('login.silent');
