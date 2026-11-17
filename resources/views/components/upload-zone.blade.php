@@ -12,6 +12,7 @@
 |   @prop string $hint      Helper text shown below the label
 |   @prop int    $maxFiles  Max number of files (default: null = unlimited)
 |   @prop string $removeMethod  Livewire method called as (index) when a file is removed
+|   @prop mixed  $removeParam   Extra argument appended when calling $removeMethod
 |
 | Usage:
 |   <x-core::upload-zone
@@ -37,6 +38,7 @@
     'multiple' => false,
     'maxFiles' => null,
     'removeMethod' => null,
+    'removeParam' => null,
 ])
 
 @php
@@ -61,6 +63,7 @@
         isMultiple: {{ $multiple ? 'true' : 'false' }},
         maxFiles: {{ $maxFiles ?? 'null' }},
         removeMethod: '{{ $removeMethod }}',
+        removeParam: {{ Illuminate\Support\Js::from($removeParam) }},
 
         handleFiles(fileList) {
             if (!fileList || fileList.length === 0) return;
@@ -207,7 +210,9 @@
                 this.clear();
             } else if (this.removeMethod) {
                 {{-- Hapus entri yang sama di state Livewire agar validasi tidak memakai jumlah lama --}}
-                $wire.call(this.removeMethod, index);
+                const args = [index];
+                if (this.removeParam !== null) args.push(this.removeParam);
+                $wire.call(this.removeMethod, ...args);
             }
         },
 

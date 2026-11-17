@@ -28,6 +28,7 @@ new class extends Component {
     public string $model = '';
     public array  $columns            = [];
     public array  $with               = [];
+    public array  $withCount          = [];
     public array  $searchable         = [];
     public array  $constraints        = [];
     public string $connection         = '';
@@ -46,6 +47,14 @@ new class extends Component {
      * dan dicocokkan lewat hash.
      */
     public string $searchUsing        = '';
+
+    /**
+     * Pengganti `constraints` untuk syarat yang tidak bisa ditulis sebagai
+     * `where(kolom, nilai)` — mis. `whereIn` atau scope per-petugas.
+     *
+     * Format `Kelas::metode`; metode menerima `(Builder $builder)`.
+     */
+    public string $queryUsing         = '';
 
     /**
      * Filter dropdown yang dirender sendiri oleh tabel.
@@ -92,6 +101,7 @@ new class extends Component {
         string $rowView,
         array  $columns            = [],
         array  $with               = [],
+        array  $withCount          = [],
         array  $searchable         = [],
         array  $constraints        = [],
         string $connection         = '',
@@ -104,11 +114,13 @@ new class extends Component {
         array  $filterOptions      = [],
         string $searchPlaceholder  = '',
         string $searchUsing        = '',
+        string $queryUsing         = '',
     ): void {
         $this->model               = $model;
         $this->rowView             = $rowView;
         $this->columns             = $columns;
         $this->with                = $with;
+        $this->withCount           = $withCount;
         $this->searchable          = $searchable;
         $this->constraints         = $constraints;
         $this->connection          = $connection;
@@ -121,6 +133,7 @@ new class extends Component {
         $this->filterOptions       = $filterOptions;
         $this->searchPlaceholder   = $searchPlaceholder;
         $this->searchUsing         = $searchUsing;
+        $this->queryUsing          = $queryUsing;
     }
 
     public function sort(string $field): void
@@ -218,6 +231,15 @@ new class extends Component {
             : $instance->newQuery();
         if ($this->with) {
             $builder->with($this->with);
+        }
+        if ($this->withCount) {
+            $builder->withCount($this->withCount);
+        }
+        if ($this->queryUsing) {
+            [$class, $method] = explode('::', $this->queryUsing, 2);
+            if (class_exists($class) && method_exists($class, $method)) {
+                $class::$method($builder);
+            }
         }
         foreach ($this->constraints as $col => $val) {
             if (is_array($val) && count($val) === 2) {

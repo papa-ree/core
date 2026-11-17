@@ -1,0 +1,25 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('regions', function (Blueprint $table) {
+            $table->id();
+            $table->string('district_code', 10)->index();
+            $table->string('district_name', 100);
+            $table->string('village_code', 13)->unique();
+            $table->string('village_name', 100);
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('regions');
+    }
+};

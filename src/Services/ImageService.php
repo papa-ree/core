@@ -120,6 +120,37 @@ class ImageService
     }
 
     /**
+     * Encode gambar menjadi WebP tanpa menyimpannya, untuk pemanggil yang
+     * punya disk/visibility sendiri (mis. dokumen privat).
+     */
+    public function encodeWebp(UploadedFile|string $file, int $quality = 80, int $maxWidth = 1920): ?EncodedImage
+    {
+        if (! $this->supportsWebp()) {
+            Log::warning('WebP encoding is not supported; caller must keep the original file.', [
+                'directive' => 'ImageService::encodeWebp',
+            ]);
+
+            return null;
+        }
+
+        $temp = $this->toTempFile($file);
+
+        try {
+            $image = $this->manager()->read($temp);
+
+            if (function_exists('exif_read_data')) {
+                $image = $image->orient();
+            }
+
+            return $image->scaleDown(width: $maxWidth)->toWebp(quality: $quality);
+        } finally {
+            if (is_file($temp)) {
+                @unlink($temp);
+            }
+        }
+    }
+
+    /**
      * Konversi file lama (jpg/jpeg/png) yang sudah tersimpan menjadi WebP.
      *
      * @param  string  $oldPath  Path relatif di dalam disk

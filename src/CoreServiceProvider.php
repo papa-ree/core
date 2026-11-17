@@ -11,6 +11,7 @@ use Bale\Core\Commands\MigrateWpSqlCommand;
 use Bale\Core\Commands\MigrateWpThumbnailsCommand;
 use Bale\Core\Commands\PublishErrorCommand;
 use Bale\Core\Commands\PublishMigrationCommand;
+use Bale\Core\Commands\SeedRegionsCommand;
 use Bale\Core\Commands\SyncPermissionsCommand;
 use Bale\Core\Commands\WpMigrationRedispatchCommand;
 use Bale\Core\Commands\WpMigrationStatusCommand;
@@ -62,6 +63,7 @@ class CoreServiceProvider extends ServiceProvider
             'command.core:install' => InstallCommand::class,
             'command.core:permissions:sync' => SyncPermissionsCommand::class,
             'command.core:publish-migration' => PublishMigrationCommand::class,
+            'command.core:seed-regions' => SeedRegionsCommand::class,
             'command.core:publish-error' => PublishErrorCommand::class,
             'command.core:clean-activity-log' => CleanActivityLogCommand::class,
             'command.core:entrance-gate:allow' => AllowEntranceGateIpCommand::class,
