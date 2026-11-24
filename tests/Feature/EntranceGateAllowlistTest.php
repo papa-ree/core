@@ -19,13 +19,13 @@ use Bale\Core\Livewire\Pages\EntranceGate\Form as EntranceGateForm;
 use Bale\Core\Livewire\Pages\EntranceGate\Section\EntranceGateTable;
 use Bale\Core\Models\EntranceGateAllowlist;
 use Bale\Core\Services\EntranceGateService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\RefreshTestDatabaseSafely;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 
-uses(RefreshDatabase::class);
+uses(RefreshTestDatabaseSafely::class);
 
 beforeEach(function () {
     config([
