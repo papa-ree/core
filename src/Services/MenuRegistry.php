@@ -3,7 +3,6 @@
 namespace Bale\Core\Services;
 
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 
 /**
  * MenuRegistry
@@ -162,16 +161,8 @@ class MenuRegistry
      */
     protected function resolveGroups(string $type): array
     {
-        $userId = Auth::id() ?? 'guest';
-        $cacheKey = "core.menu.{$type}.{$userId}";
-
-        if (Cache::has($cacheKey)) {
-            $cached = Cache::get($cacheKey);
-            if (is_array($cached)) {
-                return $cached;
-            }
-        }
-
+        // Tanpa cache store: menu dihitung tiap request agar perubahan
+        // role/permission langsung terlihat (tidak perlu optimize:clear).
         $result = [];
 
         foreach ($this->groups as $group) {
@@ -193,8 +184,6 @@ class MenuRegistry
             ];
         }
 
-        Cache::put($cacheKey, $result, 300);
-
         return $result;
     }
 
@@ -213,7 +202,7 @@ class MenuRegistry
      */
     protected function filterItems(array $items): array
     {
-        // Optimasi: eager load permissions sekali per request + cache 5 menit per user per type
+        // Eager load permissions sekali per request.
         $userId = Auth::id() ?? 'guest';
         if (! isset($this->permsCache[$userId])) {
             $user = Auth::user();
