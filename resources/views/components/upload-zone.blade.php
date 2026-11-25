@@ -11,7 +11,9 @@
 |   @prop string $label     Main label text inside the drop zone
 |   @prop string $hint      Helper text shown below the label
 |   @prop int    $maxFiles  Max number of files (default: null = unlimited)
-|   @prop string $removeMethod  Livewire method called as (index) when a file is removed
+|   @prop string $removeMethod  Livewire method called as (index) when a file is removed.
+|                                Jangan pakai nama reserved Livewire (upload, uploadMultiple,
+|                                removeUpload, cancelUpload): $wire.call() dialihkan ke API upload.
 |   @prop mixed  $removeParam   Extra argument appended when calling $removeMethod
 |
 | Usage:
