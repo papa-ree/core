@@ -42,7 +42,7 @@
             <span
                 class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-widest bg-red-500/20 text-red-300 border border-red-500/30">
                 <span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>
-                500 â€” Kesalahan Server Internal
+                500 - Kesalahan Server Internal
             </span>
         </x-slot>
 
@@ -60,16 +60,16 @@
 
         <x-slot name="actions">
             @auth
-            @php $dashboardUrl = app('router')->has('dashboard') ? route('dashboard') : '/'; @endphp
-            <a href="{{ $dashboardUrl }}" wire:navigate
-                class="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-white font-semibold text-sm shadow-xl transition-all duration-300 hover:shadow-purple-500/30 hover:scale-[1.02] active:scale-[0.98]"
-                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-                Kembali ke Dashboard
-            </a>
+                @php $dashboardUrl = app('router')->has('dashboard') ? route('dashboard') : '/'; @endphp
+                <a href="{{ $dashboardUrl }}" wire:navigate
+                    class="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-white font-semibold text-sm shadow-xl transition-all duration-300 hover:shadow-purple-500/30 hover:scale-[1.02] active:scale-[0.98]"
+                    style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                    Kembali ke Dashboard
+                </a>
             @endauth
             <button onclick="window.location.reload()"
                 class="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-white/80 font-semibold text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
